@@ -29,6 +29,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
+  // 🔥 FORMATEAR FECHA: "Chiclayo, mes del año" (para la fecha abajo)
   const formatearFecha = (fechaStr: string) => {
     if (!fechaStr) return 'Chiclayo, 2026';
     
@@ -47,11 +48,32 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
+  // 🔥 FORMATEAR FECHA COMPLETA: "25 de junio de 2026" (para el texto)
+  const formatearFechaCompleta = (fechaStr: string) => {
+    if (!fechaStr) return '2026';
+    
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    
+    try {
+      const fecha = new Date(fechaStr);
+      const dia = fecha.getDate();
+      const mes = meses[fecha.getMonth()];
+      const año = fecha.getFullYear();
+      return `${dia} de ${mes} de ${año}`;
+    } catch {
+      return '2026';
+    }
+  };
+
+  // 🔥 GENERAR TEXTO DEL WEBINAR CON FECHA COMPLETA
   const generarTextoWebinar = () => {
     const periodo = obtenerPeriodo();
-    const fechaTexto = formatearFecha(fecha);
+    const fechaCompleta = formatearFechaCompleta(fecha); // 🔥 Usa la fecha completa
     
-    return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaTexto}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
+    return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
   };
 
   const generarVistaPrevia = async () => {
@@ -115,12 +137,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (SUBIDO)
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
       const textoWebinar = generarTextoWebinar();
-      const textFontSize = 11;
-      const textX = 70;
-      const textY = height - 320; // 👈 SUBIDO (antes 360)
-      const maxWidth = width - 140;
+      const textFontSize = 12; // 🔥 Letra más grande (antes 11)
+      const textX = 80; // 🔥 Más margen a la izquierda (antes 70)
+      const textY = height - 320;
+      const maxWidth = width - 180; // 🔥 Más estrecho (antes 140)
       
       const palabras = textoWebinar.split(' ');
       let lineas = [];
@@ -139,7 +161,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       }
       if (lineaActual) lineas.push(lineaActual);
       
-      const lineHeight = 18;
+      const lineHeight = 20; // 🔥 Más espacio entre líneas (antes 18)
       let currentY = textY;
       
       for (const linea of lineas) {
@@ -153,7 +175,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 DIBUJAR LA FECHA
+      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - ABAJO A LA DERECHA
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = 16;
       const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
