@@ -43,7 +43,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
 
     try {
       // 1. Cargar la plantilla PDF
-      const templateUrl = '/src/assets/certificado.pdf';
+      const templateUrl = '../assets/certificado.pdf';
       console.log('📄 Cargando plantilla:', templateUrl);
       
       const response = await fetch(templateUrl);
