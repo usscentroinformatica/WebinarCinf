@@ -69,8 +69,8 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     setErrorMsg('');
 
     try {
-      // 1. Cargar la plantilla PDF
-      const templateUrl = '/src/assets/certificado.pdf';
+      // 🔥 RUTA CORREGIDA - PDF en public/certificado.pdf
+      const templateUrl = '/certificado.pdf';
       console.log('📄 Cargando plantilla:', templateUrl);
       
       const response = await fetch(templateUrl);
@@ -81,6 +81,15 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       
       const templateBytes = await response.arrayBuffer();
       console.log('✅ Plantilla cargada:', templateBytes.byteLength, 'bytes');
+      
+      // Verificar que sea un PDF válido
+      const bytes = new Uint8Array(templateBytes);
+      const header = bytes.slice(0, 5);
+      const isPDF = header[0] === 37 && header[1] === 80 && header[2] === 68 && header[3] === 70 && header[4] === 45;
+      
+      if (!isPDF) {
+        throw new Error('El archivo no es un PDF válido (header incorrecto)');
+      }
       
       // 2. Cargar el PDF
       const pdfDoc = await PDFDocument.load(templateBytes);
