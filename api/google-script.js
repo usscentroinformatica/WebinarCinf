@@ -15,19 +15,21 @@ export default async function handler(req, res) {
       const { scriptUrl, ...params } = req.query;
       
       console.log('📡 GET - scriptUrl:', scriptUrl);
-      console.log('📡 GET - todos los parámetros:', params);
+      console.log('📡 GET - params:', params);
       
       if (!scriptUrl) {
         return res.status(400).json({ error: 'Falta scriptUrl' });
       }
       
-      // 🔥 CONSTRUIR LA URL CON TODOS LOS PARÁMETROS (EXCEPTO scriptUrl)
+      // 🔥 CONSTRUIR LA URL CON TODOS LOS PARÁMETROS
       let targetUrl = scriptUrl;
       const queryParams = [];
       
+      // Agregar TODOS los parámetros (excepto scriptUrl)
       for (const [key, value] of Object.entries(params)) {
         if (value) {
           queryParams.push(`${key}=${encodeURIComponent(value)}`);
+          console.log(`📡 GET - ${key}: ${value}`);
         }
       }
       
@@ -35,12 +37,12 @@ export default async function handler(req, res) {
         targetUrl += `?${queryParams.join('&')}`;
       }
       
-      console.log('📤 GET llamando a:', targetUrl);
+      console.log('📤 GET - URL final:', targetUrl);
       
       const response = await fetch(targetUrl);
       const data = await response.json();
       
-      console.log('📥 Respuesta GET:', data);
+      console.log('📥 GET - Respuesta:', data);
       
       return res.status(200).json(data);
       
@@ -69,8 +71,8 @@ export default async function handler(req, res) {
         targetUrl += `${separator}spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
       }
       
-      console.log('📤 POST llamando a:', targetUrl);
-      console.log('📦 spreadsheetId:', spreadsheetId);
+      console.log('📤 POST - URL final:', targetUrl);
+      console.log('📦 POST - Body:', bodyData);
       
       const response = await fetch(targetUrl, {
         method: 'POST',
@@ -79,7 +81,7 @@ export default async function handler(req, res) {
       });
       
       const data = await response.json();
-      console.log('📥 Respuesta POST:', data);
+      console.log('📥 POST - Respuesta:', data);
       
       return res.status(200).json(data);
       
