@@ -23,8 +23,6 @@ const CertificadosAdmin: React.FC = () => {
   const [mensaje, setMensaje] = useState('');
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
-  // ❌ ELIMINAR periodoActual
-  // const [periodoActual, setPeriodoActual] = useState('WEBINAR NO CONFIGURADO');
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -34,8 +32,6 @@ const CertificadosAdmin: React.FC = () => {
         if (configSnap.exists()) {
           const configData = configSnap.val();
           setConfig({ scriptUrl: configData.googleScriptUrl || '', spreadsheetId: configData.spreadsheetId || '' });
-          // ❌ ELIMINAR setPeriodoActual
-          // setPeriodoActual(configData.periodo || 'WEBINAR NO CONFIGURADO');
           if (configData.spreadsheetId) {
             await cargarDatosHoja(configData.spreadsheetId);
           }
@@ -55,6 +51,7 @@ const CertificadosAdmin: React.FC = () => {
       const response = await fetch(`https://opensheet.elk.sh/${spreadsheetId}/Respuestas`);
       if (response.ok) {
         const data = await response.json();
+        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
         const certificados = data
           .filter((row: any) => row['Solicita certificado']?.toLowerCase() === 'si')
           .map((row: any, index: number) => ({
@@ -76,18 +73,26 @@ const CertificadosAdmin: React.FC = () => {
     }
   };
 
-  const actualizarPagado = async (fila: number, valor: string) => {
+  // 🔥 ACTUALIZAR PAGADO
+  const togglePagado = async (fila: number, valorActual: string) => {
+    const nuevoValor = valorActual === 'SI' ? 'NO' : 'SI';
     setMensaje('');
     try {
       const response = await fetch('/api/google-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'actualizarPagado', scriptUrl: config.scriptUrl, spreadsheetId: config.spreadsheetId, fila, valor })
+        body: JSON.stringify({
+          action: 'actualizarPagado',
+          scriptUrl: config.scriptUrl,
+          spreadsheetId: config.spreadsheetId,
+          fila: fila,
+          valor: nuevoValor
+        })
       });
       const result = await response.json();
       if (result.success) {
-        setMensaje(`✅ Estado actualizado a ${valor}`);
-        setRegistros(prev => prev.map(r => r.fila === fila ? { ...r, pagado: valor } : r));
+        setMensaje(`✅ ${nuevoValor === 'SI' ? 'Pago confirmado' : 'Pago desmarcado'}`);
+        setRegistros(prev => prev.map(r => r.fila === fila ? { ...r, pagado: nuevoValor } : r));
       } else {
         setError(`❌ ${result.error}`);
       }
@@ -108,7 +113,9 @@ const CertificadosAdmin: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2 style={{ color: '#5a2290', marginBottom: '20px' }}>📜 Gestión de Certificados</h2>
+      <h2 style={{ color: '#5a2290', marginBottom: '20px' }}>
+        📜 Certificados - {new Date().getFullYear()}
+      </h2>
       
       {mensaje && <div style={{ padding: '12px 16px', backgroundColor: '#e8f5e1', color: '#1a5e20', borderRadius: '8px', marginBottom: '16px' }}>{mensaje}</div>}
       {error && <div style={{ padding: '12px 16px', backgroundColor: '#fce8e6', color: '#c5221f', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
@@ -125,10 +132,9 @@ const CertificadosAdmin: React.FC = () => {
               <tr style={{ backgroundColor: '#5a2290', color: 'white' }}>
                 <th style={{ padding: '12px', textAlign: 'left' }}>#</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Participante</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Nombre Certificado</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Nombre para Certificado</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Curso</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>PEAD</th>
-                <th style={{ padding: '12px', textAlign: 'center' }}>Pagado</th>
+                <th style={{ padding: '12px', textAlign: 'center' }}>✅ Pagado</th>
                 <th style={{ padding: '12px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
@@ -139,20 +145,62 @@ const CertificadosAdmin: React.FC = () => {
                   <td style={{ padding: '10px' }}>{registro.nombre}</td>
                   <td style={{ padding: '10px' }}>{registro.nombreCertificado}</td>
                   <td style={{ padding: '10px' }}>{registro.curso}</td>
-                  <td style={{ padding: '10px' }}>{registro.pead}</td>
                   <td style={{ padding: '10px', textAlign: 'center' }}>
-                    <select value={registro.pagado} onChange={(e) => actualizarPagado(registro.fila, e.target.value)} style={{ padding: '6px 12px', borderRadius: '4px', border: `2px solid ${registro.pagado === 'SI' ? '#63ed12' : '#ff6d00'}`, backgroundColor: registro.pagado === 'SI' ? '#e8f5e1' : '#fff3e0', fontWeight: '600', cursor: 'pointer' }}>
-                      <option value="NO">❌ No pagado</option>
-                      <option value="SI">✅ Pagado</option>
-                    </select>
+                    <button
+                      onClick={() => togglePagado(registro.fila, registro.pagado)}
+                      style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        border: `2px solid ${registro.pagado === 'SI' ? '#63ed12' : '#ccc'}`,
+                        backgroundColor: registro.pagado === 'SI' ? '#63ed12' : 'white',
+                        cursor: 'pointer',
+                        fontSize: '20px',
+                        transition: 'all 0.3s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto'
+                      }}
+                    >
+                      {registro.pagado === 'SI' ? '✅' : '⬜'}
+                    </button>
                   </td>
                   <td style={{ padding: '10px', textAlign: 'center' }}>
                     {registro.pagado === 'SI' ? (
-                      <button onClick={() => setCertificadoSeleccionado({ nombre: registro.nombreCertificado || registro.nombre, fecha: registro.fecha })} style={{ padding: '8px 16px', backgroundColor: '#63ed12', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <button
+                        onClick={() => setCertificadoSeleccionado({
+                          nombre: registro.nombreCertificado || registro.nombre,
+                          fecha: registro.fecha
+                        })}
+                        style={{
+                          padding: '8px 20px',
+                          backgroundColor: '#5a2290',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          transition: 'all 0.3s ease'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#63ed12';
+                          e.currentTarget.style.color = '#000';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#5a2290';
+                          e.currentTarget.style.color = 'white';
+                        }}
+                      >
                         📄 Ver Certificado
                       </button>
                     ) : (
-                      <span style={{ color: '#999', fontSize: '12px', fontStyle: 'italic' }}>⏳ Pendiente de pago</span>
+                      <span style={{ color: '#999', fontSize: '12px', fontStyle: 'italic' }}>
+                        ⏳ Marcar pago
+                      </span>
                     )}
                   </td>
                 </tr>
