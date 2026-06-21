@@ -56,8 +56,8 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           });
           
           if (configData.spreadsheetId && configData.googleScriptUrl) {
-            // 🔥 CARGAR DATOS DESDE EL APP SCRIPT
-            await cargarDatosDesdeAppScript(configData.spreadsheetId, configData.googleScriptUrl);
+            // 🔥 CARGAR DATOS DIRECTAMENTE (SIN PROXY)
+            await cargarDatosDirecto(configData.spreadsheetId, configData.googleScriptUrl);
           } else {
             setError('Falta configuración (spreadsheetId o scriptUrl)');
           }
@@ -74,16 +74,14 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     cargarDatos();
   }, []);
 
-  // 🔥 CARGAR DATOS DESDE EL APP SCRIPT (SIN opensheet.elk.sh)
-  const cargarDatosDesdeAppScript = async (spreadsheetId: string, scriptUrl: string) => {
+  // 🔥 NUEVO: CARGAR DATOS DIRECTAMENTE DEL APP SCRIPT (SIN PROXY)
+  const cargarDatosDirecto = async (spreadsheetId: string, scriptUrl: string) => {
     try {
-      console.log('📡 Llamando al App Script para obtener respuestas...');
-      console.log('🔑 scriptUrl:', scriptUrl);
-      console.log('🔑 spreadsheetId:', spreadsheetId);
+      console.log('📡 Llamando al App Script directamente...');
       
-      // 🔥 USAR EL PROXY DE VERCEL (EVITA CORS)
-      const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${spreadsheetId}`;
-      console.log('📡 URL del proxy:', url);
+      // 🔥 URL DIRECTA
+      const url = `${scriptUrl}?action=getRespuestas&spreadsheetId=${spreadsheetId}`;
+      console.log('📡 URL directa:', url);
       
       const response = await fetch(url);
       
@@ -92,16 +90,13 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       }
       
       const result = await response.json();
-      console.log('📥 Respuesta del proxy:', result);
+      console.log('📥 Respuesta del App Script:', result);
       
       if (result.success && result.data) {
         const data = result.data;
-        console.log(`📄 ${data.length} registros encontrados en la hoja`);
+        console.log(`📄 ${data.length} registros encontrados`);
         
-        // Mostrar los datos para depurar
-        console.log('📝 Datos completos:', data);
-        
-        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO (Solicita certificado = "si")
+        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
         const certificados = data
           .filter((row: any) => {
             const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
@@ -120,7 +115,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
             fecha: row['Marca temporal'] || new Date().toISOString()
           }));
         
-        console.log(`✅ ${certificados.length} certificados encontrados (solicitaron SI)`);
+        console.log(`✅ ${certificados.length} certificados encontrados`);
         setRegistros(certificados);
       } else {
         console.error('❌ Error en la respuesta:', result);
@@ -128,7 +123,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       }
       
     } catch (error: any) {
-      console.error('❌ Error cargando datos desde App Script:', error);
+      console.error('❌ Error cargando datos:', error);
       setError(`Error: ${error.message}`);
     }
   };
@@ -137,6 +132,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     const nuevoValor = valorActual === 'SI' ? 'NO' : 'SI';
     setMensaje('');
     try {
+      // 🔥 Para actualizar pagado, usamos el proxy (POST)
       const response = await fetch('/api/google-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

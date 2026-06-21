@@ -11,38 +11,33 @@ export default async function handler(req, res) {
   // Manejar GET
   if (req.method === 'GET') {
     try {
-      // 🔥 EXTRAER TODOS LOS PARÁMETROS
-      const { scriptUrl, ...params } = req.query;
+      const { scriptUrl, action, periodo, email, spreadsheetId } = req.query;
       
       console.log('📡 GET - scriptUrl:', scriptUrl);
-      console.log('📡 GET - params:', params);
+      console.log('📡 GET - action:', action);
+      console.log('📡 GET - periodo:', periodo);
+      console.log('📡 GET - email:', email);
+      console.log('📡 GET - spreadsheetId:', spreadsheetId);
       
       if (!scriptUrl) {
         return res.status(400).json({ error: 'Falta scriptUrl' });
       }
       
-      // 🔥 CONSTRUIR LA URL CON TODOS LOS PARÁMETROS
       let targetUrl = scriptUrl;
-      const queryParams = [];
+      const params = [];
+      if (action) params.push(`action=${encodeURIComponent(action)}`);
+      if (periodo) params.push(`periodo=${encodeURIComponent(periodo)}`);
+      if (email) params.push(`email=${encodeURIComponent(email)}`);
+      if (spreadsheetId) params.push(`spreadsheetId=${encodeURIComponent(spreadsheetId)}`);
       
-      // Agregar TODOS los parámetros (excepto scriptUrl)
-      for (const [key, value] of Object.entries(params)) {
-        if (value) {
-          queryParams.push(`${key}=${encodeURIComponent(value)}`);
-          console.log(`📡 GET - ${key}: ${value}`);
-        }
+      if (params.length > 0) {
+        targetUrl += `?${params.join('&')}`;
       }
       
-      if (queryParams.length > 0) {
-        targetUrl += `?${queryParams.join('&')}`;
-      }
-      
-      console.log('📤 GET - URL final:', targetUrl);
+      console.log('📤 GET llamando a:', targetUrl);
       
       const response = await fetch(targetUrl);
       const data = await response.json();
-      
-      console.log('📥 GET - Respuesta:', data);
       
       return res.status(200).json(data);
       
@@ -57,9 +52,6 @@ export default async function handler(req, res) {
     try {
       const { scriptUrl, spreadsheetId, ...bodyData } = req.body;
       
-      console.log('📡 POST - scriptUrl:', scriptUrl);
-      console.log('📡 POST - spreadsheetId:', spreadsheetId);
-      
       if (!scriptUrl) {
         return res.status(400).json({ error: 'Falta scriptUrl' });
       }
@@ -71,8 +63,8 @@ export default async function handler(req, res) {
         targetUrl += `${separator}spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
       }
       
-      console.log('📤 POST - URL final:', targetUrl);
-      console.log('📦 POST - Body:', bodyData);
+      console.log('📤 POST llamando a:', targetUrl);
+      console.log('📦 spreadsheetId:', spreadsheetId);
       
       const response = await fetch(targetUrl, {
         method: 'POST',
@@ -81,7 +73,7 @@ export default async function handler(req, res) {
       });
       
       const data = await response.json();
-      console.log('📥 POST - Respuesta:', data);
+      console.log('📥 Respuesta POST:', data);
       
       return res.status(200).json(data);
       
