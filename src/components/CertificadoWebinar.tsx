@@ -102,11 +102,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 🔥 6. DIBUJAR EL NOMBRE
+      // 🔥 6. DIBUJAR EL NOMBRE (AJUSTA SEGÚN TU PLANTILLA)
       const nombreFontSize = 36;
       const nombreWidth = fontBold.widthOfTextAtSize(nombre, nombreFontSize);
       const nombreX = (width - nombreWidth) / 2;
-      const nombreY = height - 240;
+      const nombreY = height - 240; // 👈 AJUSTA ESTE VALOR
       
       firstPage.drawText(nombre, {
         x: nombreX,
@@ -120,7 +120,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 11;
       const textX = 70;
-      const textY = height - 360;
+      const textY = height - 360; // 👈 AJUSTA ESTE VALOR
       const maxWidth = width - 140;
       
       // Dividir el texto en líneas
@@ -156,12 +156,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 8. DIBUJAR LA FECHA
+      // 🔥 8. DIBUJAR LA FECHA (Chiclayo, mes del año)
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = 16;
       const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 80;
-      const fechaY = 150;
+      const fechaX = width - fechaWidth - 80; // 👈 AJUSTA ESTE VALOR
+      const fechaY = 150; // 👈 AJUSTA ESTE VALOR
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
@@ -200,9 +200,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     
     try {
       if (!pdfUrl) {
-        // Si no hay vista previa, generar primero
         await generarVistaPrevia();
-        // Esperar un momento y luego descargar
         setTimeout(() => {
           if (pdfUrl) {
             const link = document.createElement('a');
@@ -217,7 +215,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         return;
       }
 
-      // Descargar desde la URL existente
       const link = document.createElement('a');
       link.href = pdfUrl;
       link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
@@ -237,7 +234,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
   useEffect(() => {
     generarVistaPrevia();
     
-    // Limpiar URL al desmontar
     return () => {
       if (pdfUrl) {
         URL.revokeObjectURL(pdfUrl);
