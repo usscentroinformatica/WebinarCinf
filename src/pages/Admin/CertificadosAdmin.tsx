@@ -56,8 +56,8 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           });
           
           if (configData.spreadsheetId && configData.googleScriptUrl) {
-            // 🔥 CARGAR DATOS DIRECTAMENTE (SIN PROXY)
-            await cargarDatosDirecto(configData.spreadsheetId, configData.googleScriptUrl);
+            // 🔥 USAR EL PROXY (CON TODOS LOS PARÁMETROS)
+            await cargarDatosDesdeProxy(configData.spreadsheetId, configData.googleScriptUrl);
           } else {
             setError('Falta configuración (spreadsheetId o scriptUrl)');
           }
@@ -74,14 +74,16 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     cargarDatos();
   }, []);
 
-  // 🔥 NUEVO: CARGAR DATOS DIRECTAMENTE DEL APP SCRIPT (SIN PROXY)
-  const cargarDatosDirecto = async (spreadsheetId: string, scriptUrl: string) => {
+  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY
+  const cargarDatosDesdeProxy = async (spreadsheetId: string, scriptUrl: string) => {
     try {
-      console.log('📡 Llamando al App Script directamente...');
+      console.log('📡 Llamando al App Script a través del proxy...');
+      console.log('🔑 scriptUrl:', scriptUrl);
+      console.log('🔑 spreadsheetId:', spreadsheetId);
       
-      // 🔥 URL DIRECTA
-      const url = `${scriptUrl}?action=getRespuestas&spreadsheetId=${spreadsheetId}`;
-      console.log('📡 URL directa:', url);
+      // 🔥 USAR EL PROXY CON TODOS LOS PARÁMETROS
+      const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
+      console.log('📡 URL del proxy:', url);
       
       const response = await fetch(url);
       
@@ -90,7 +92,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       }
       
       const result = await response.json();
-      console.log('📥 Respuesta del App Script:', result);
+      console.log('📥 Respuesta del proxy:', result);
       
       if (result.success && result.data) {
         const data = result.data;
@@ -123,7 +125,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       }
       
     } catch (error: any) {
-      console.error('❌ Error cargando datos:', error);
+      console.error('❌ Error cargando datos desde proxy:', error);
       setError(`Error: ${error.message}`);
     }
   };
@@ -132,7 +134,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     const nuevoValor = valorActual === 'SI' ? 'NO' : 'SI';
     setMensaje('');
     try {
-      // 🔥 Para actualizar pagado, usamos el proxy (POST)
       const response = await fetch('/api/google-script', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
