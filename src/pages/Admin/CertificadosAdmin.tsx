@@ -16,12 +16,10 @@ interface RegistroCertificado {
   fecha: string;
 }
 
-// 🔥 DEFINIR LAS PROPS - ESTO ES LO QUE FALTABA
 interface CertificadosAdminProps {
   periodo: string;
 }
 
-// 🔥 RECIBIR PERÍODO COMO PROP
 const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [registros, setRegistros] = useState<RegistroCertificado[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +28,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
 
-  // Extraer año y mes del período para mostrar
   const extraerFechaPeriodo = (periodoStr: string) => {
     const partes = periodoStr.split(' ');
     const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
@@ -45,17 +42,30 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+        console.log('🔍 Cargando configuración...');
         const configRef = ref(db, 'webinar-config/config');
         const configSnap = await get(configRef);
+        
         if (configSnap.exists()) {
           const configData = configSnap.val();
-          setConfig({ scriptUrl: configData.googleScriptUrl || '', spreadsheetId: configData.spreadsheetId || '' });
-          if (configData.spreadsheetId) {
-            await cargarDatosHoja(configData.spreadsheetId);
+          console.log('📦 Configuración:', configData);
+          
+          setConfig({ 
+            scriptUrl: configData.googleScriptUrl || '', 
+            spreadsheetId: configData.spreadsheetId || '' 
+          });
+          
+          if (configData.spreadsheetId && configData.googleScriptUrl) {
+            // 🔥 NUEVO: Usar el App Script en lugar de opensheet.elk.sh
+            await cargarDatosDesdeAppScript(configData.spreadsheetId, configData.googleScriptUrl);
+          } else {
+            setError('Falta configuración (spreadsheetId o scriptUrl)');
           }
+        } else {
+          setError('No hay configuración en Firebase');
         }
       } catch (error) {
-        console.error('Error cargando datos:', error);
+        console.error('❌ Error cargando datos:', error);
         setError('Error al cargar los datos');
       } finally {
         setLoading(false);
@@ -64,13 +74,34 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     cargarDatos();
   }, []);
 
-  const cargarDatosHoja = async (spreadsheetId: string) => {
+  // 🔥 NUEVA FUNCIÓN: Cargar datos desde el App Script
+  const cargarDatosDesdeAppScript = async (spreadsheetId: string, scriptUrl: string) => {
     try {
-      const response = await fetch(`https://opensheet.elk.sh/${spreadsheetId}/Respuestas`);
-      if (response.ok) {
-        const data = await response.json();
+      console.log('📡 Llamando al App Script para obtener respuestas...');
+      
+      // Usar la URL directa del App Script
+      const url = `${scriptUrl}?action=getRespuestas&spreadsheetId=${spreadsheetId}`;
+      console.log('📡 URL:', url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📥 Respuesta del App Script:', result);
+      
+      if (result.success && result.data) {
+        const data = result.data;
+        console.log(`📄 ${data.length} registros encontrados`);
+        
+        // Filtrar los que solicitan certificado
         const certificados = data
-          .filter((row: any) => row['Solicita certificado']?.toLowerCase() === 'si')
+          .filter((row: any) => {
+            const solicita = row['Solicita certificado']?.toLowerCase() || 'no';
+            return solicita === 'si';
+          })
           .map((row: any, index: number) => ({
             fila: index + 2,
             email: row['Correo electrónico'] || '',
@@ -82,11 +113,16 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
             pagado: row['Pagado'] || 'NO',
             fecha: row['Marca temporal'] || new Date().toISOString()
           }));
+        
+        console.log(`✅ ${certificados.length} certificados encontrados`);
         setRegistros(certificados);
+      } else {
+        setError(result.error || 'Error al obtener los datos');
       }
-    } catch (error) {
-      console.error('Error cargando hoja:', error);
-      setError('Error al cargar la hoja de cálculo');
+      
+    } catch (error: any) {
+      console.error('❌ Error cargando datos desde App Script:', error);
+      setError(`Error: ${error.message}`);
     }
   };
 
@@ -117,7 +153,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     }
   };
 
-  // Contadores
   const totalSolicitudes = registros.length;
   const pagados = registros.filter(r => r.pagado === 'SI').length;
   const pendientes = totalSolicitudes - pagados;
