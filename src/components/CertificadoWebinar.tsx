@@ -16,7 +16,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
   const [cargandoVistaPrevia, setCargandoVistaPrevia] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // 🔥 OBTENER EL PERÍODO DESDE LOCALSTORAGE
   const obtenerPeriodo = () => {
     try {
       const webinarData = localStorage.getItem('webinar_data');
@@ -30,7 +29,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 FORMATEAR FECHA: "Chiclayo, mes del año"
   const formatearFecha = (fechaStr: string) => {
     if (!fechaStr) return 'Chiclayo, 2026';
     
@@ -49,7 +47,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 GENERAR TEXTO DEL WEBINAR
   const generarTextoWebinar = () => {
     const periodo = obtenerPeriodo();
     const fechaTexto = formatearFecha(fecha);
@@ -57,7 +54,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaTexto}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
   };
 
-  // 🔥 GENERAR VISTA PREVIA DEL PDF
   const generarVistaPrevia = async () => {
     if (!nombre.trim()) {
       setErrorMsg('El nombre es obligatorio');
@@ -69,7 +65,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     setErrorMsg('');
 
     try {
-      // 🔥 RUTA CORREGIDA - PDF en public/certificado.pdf
       const templateUrl = '/certificado.pdf';
       console.log('📄 Cargando plantilla:', templateUrl);
       
@@ -82,7 +77,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const templateBytes = await response.arrayBuffer();
       console.log('✅ Plantilla cargada:', templateBytes.byteLength, 'bytes');
       
-      // Verificar que sea un PDF válido
       const bytes = new Uint8Array(templateBytes);
       const header = bytes.slice(0, 5);
       const isPDF = header[0] === 37 && header[1] === 80 && header[2] === 68 && header[3] === 70 && header[4] === 45;
@@ -91,11 +85,9 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         throw new Error('El archivo no es un PDF válido (header incorrecto)');
       }
       
-      // 2. Cargar el PDF
       const pdfDoc = await PDFDocument.load(templateBytes);
       pdfDoc.registerFontkit(fontkit);
       
-      // 3. Obtener la primera página
       const pages = pdfDoc.getPages();
       const firstPage = pages[0];
       
@@ -103,19 +95,17 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         throw new Error('El PDF no tiene páginas');
       }
       
-      // 4. Dimensiones de la página
       const { width, height } = firstPage.getSize();
       console.log('📐 Dimensiones:', width, 'x', height);
       
-      // 5. Cargar fuentes
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 🔥 6. DIBUJAR EL NOMBRE (AJUSTA SEGÚN TU PLANTILLA)
+      // 🔥 DIBUJAR EL NOMBRE
       const nombreFontSize = 36;
       const nombreWidth = fontBold.widthOfTextAtSize(nombre, nombreFontSize);
       const nombreX = (width - nombreWidth) / 2;
-      const nombreY = height - 240; // 👈 AJUSTA ESTE VALOR
+      const nombreY = height - 240;
       
       firstPage.drawText(nombre, {
         x: nombreX,
@@ -125,14 +115,13 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 🔥 7. DIBUJAR EL TEXTO DEL WEBINAR
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (SUBIDO)
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 11;
       const textX = 70;
-      const textY = height - 360; // 👈 AJUSTA ESTE VALOR
+      const textY = height - 320; // 👈 SUBIDO (antes 360)
       const maxWidth = width - 140;
       
-      // Dividir el texto en líneas
       const palabras = textoWebinar.split(' ');
       let lineas = [];
       let lineaActual = '';
@@ -150,7 +139,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       }
       if (lineaActual) lineas.push(lineaActual);
       
-      // Dibujar cada línea
       const lineHeight = 18;
       let currentY = textY;
       
@@ -165,12 +153,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 8. DIBUJAR LA FECHA (Chiclayo, mes del año)
+      // 🔥 DIBUJAR LA FECHA
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = 16;
       const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 80; // 👈 AJUSTA ESTE VALOR
-      const fechaY = 150; // 👈 AJUSTA ESTE VALOR
+      const fechaX = width - fechaWidth - 80;
+      const fechaY = 150;
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
@@ -180,10 +168,8 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.2, 0.2, 0.2),
       });
       
-      // 9. Guardar el PDF
       const pdfBytes = await pdfDoc.save();
       
-      // 10. Convertir a URL para vista previa
       const arrayBuffer = new ArrayBuffer(pdfBytes.length);
       const view = new Uint8Array(arrayBuffer);
       view.set(pdfBytes);
@@ -203,7 +189,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 GENERAR Y DESCARGAR PDF
   const descargarPDF = async () => {
     setGenerando(true);
     
@@ -239,7 +224,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 GENERAR VISTA PREVIA AL ABRIR EL MODAL
   useEffect(() => {
     generarVistaPrevia();
     
@@ -276,7 +260,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         display: 'flex',
         flexDirection: 'column'
       }}>
-        {/* Botón cerrar */}
         <button
           onClick={() => {
             if (pdfUrl) URL.revokeObjectURL(pdfUrl);
@@ -303,7 +286,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
           ✕
         </button>
 
-        {/* Encabezado */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -352,7 +334,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
           </div>
         </div>
 
-        {/* Área de vista previa */}
         <div style={{
           flex: 1,
           minHeight: '500px',
@@ -443,7 +424,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
           )}
         </div>
 
-        {/* Información adicional */}
         <div style={{
           display: 'flex',
           justifyContent: 'space-between',
