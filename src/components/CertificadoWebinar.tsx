@@ -13,6 +13,21 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
   const [generando, setGenerando] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  // 🔥 OBTENER EL PERÍODO DESDE LOCALSTORAGE
+  const obtenerPeriodo = () => {
+    try {
+      const webinarData = localStorage.getItem('webinar_data');
+      if (webinarData) {
+        const data = JSON.parse(webinarData);
+        return data.periodo || 'Webinar de Capacitación';
+      }
+      return 'Webinar de Capacitación';
+    } catch {
+      return 'Webinar de Capacitación';
+    }
+  };
+
+  // 🔥 FORMATEAR FECHA: "Chiclayo, mes del año"
   const formatearFecha = (fechaStr: string) => {
     if (!fechaStr) return 'Chiclayo, 2026';
     
@@ -23,13 +38,20 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     
     try {
       const fecha = new Date(fechaStr);
-      const dia = fecha.getDate();
       const mes = meses[fecha.getMonth()];
       const año = fecha.getFullYear();
-      return `Chiclayo, ${dia} de ${mes} del ${año}`;
+      return `Chiclayo, ${mes} del ${año}`;
     } catch {
       return 'Chiclayo, 2026';
     }
+  };
+
+  // 🔥 GENERAR TEXTO DEL WEBINAR
+  const generarTextoWebinar = () => {
+    const periodo = obtenerPeriodo();
+    const fechaTexto = formatearFecha(fecha);
+    
+    return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaTexto}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
   };
 
   const generarPDF = async () => {
@@ -43,7 +65,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
 
     try {
       // 1. Cargar la plantilla PDF
-      const templateUrl = '../assets/certificado.pdf';
+      const templateUrl = '/src/assets/certificado.pdf';
       console.log('📄 Cargando plantilla:', templateUrl);
       
       const response = await fetch(templateUrl);
@@ -71,52 +93,94 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const { width, height } = firstPage.getSize();
       console.log('📐 Dimensiones:', width, 'x', height);
       
-      // 5. Cargar fuente
-      const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      // 5. Cargar fuentes
+      const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 6. DIBUJAR EL NOMBRE
+      // 🔥 6. DIBUJAR EL NOMBRE (MÁS ARRIBA)
       const nombreFontSize = 36;
-      const nombreWidth = font.widthOfTextAtSize(nombre, nombreFontSize);
+      const nombreWidth = fontBold.widthOfTextAtSize(nombre, nombreFontSize);
       const nombreX = (width - nombreWidth) / 2;
-      const nombreY = height - 280;
+      const nombreY = height - 240; // Subido
+      
+      console.log(`📝 Dibujando nombre en y=${nombreY}`);
       
       firstPage.drawText(nombre, {
         x: nombreX,
         y: nombreY,
         size: nombreFontSize,
-        font: font,
+        font: fontBold,
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 7. DIBUJAR LA FECHA
+      // 🔥 7. DIBUJAR EL TEXTO DEL WEBINAR
+      const textoWebinar = generarTextoWebinar();
+      const textFontSize = 11;
+      const textX = 70;
+      const textY = height - 360;
+      const maxWidth = width - 140;
+      
+      // Dividir el texto en líneas
+      const palabras = textoWebinar.split(' ');
+      let lineas = [];
+      let lineaActual = '';
+      
+      for (const palabra of palabras) {
+        const prueba = lineaActual + (lineaActual ? ' ' : '') + palabra;
+        const anchoPrueba = fontNormal.widthOfTextAtSize(prueba, textFontSize);
+        
+        if (anchoPrueba <= maxWidth) {
+          lineaActual = prueba;
+        } else {
+          if (lineaActual) lineas.push(lineaActual);
+          lineaActual = palabra;
+        }
+      }
+      if (lineaActual) lineas.push(lineaActual);
+      
+      // Dibujar cada línea
+      const lineHeight = 18;
+      let currentY = textY;
+      
+      for (const linea of lineas) {
+        firstPage.drawText(linea, {
+          x: textX,
+          y: currentY,
+          size: textFontSize,
+          font: fontNormal,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+        currentY -= lineHeight;
+      }
+      
+      // 🔥 8. DIBUJAR LA FECHA (Chiclayo, mes del año - A LA DERECHA)
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = 16;
-      const fechaWidth = font.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = (width - fechaWidth) / 2;
-      const fechaY = height - 380;
+      const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
+      const fechaX = width - fechaWidth - 80;
+      const fechaY = 150;
+      
+      console.log(`📅 Dibujando fecha "${fechaTexto}" en x=${fechaX}, y=${fechaY}`);
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
         y: fechaY,
         size: fechaFontSize,
-        font: font,
+        font: fontBold,
         color: rgb(0.2, 0.2, 0.2),
       });
       
-      // 8. Guardar el PDF como Uint8Array
+      // 9. Guardar el PDF
       const pdfBytes = await pdfDoc.save();
       
-      // 🔥 9. SOLUCIÓN DEFINITIVA: Convertir Uint8Array a ArrayBuffer
-      // Crear un nuevo ArrayBuffer a partir del Uint8Array
+      // 10. Descargar
       const arrayBuffer = new ArrayBuffer(pdfBytes.length);
       const view = new Uint8Array(arrayBuffer);
       view.set(pdfBytes);
       
-      // Crear el Blob con el ArrayBuffer
       const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
-      // 10. Descargar
       const link = document.createElement('a');
       link.href = url;
       link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
@@ -124,7 +188,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       link.click();
       document.body.removeChild(link);
       
-      // Liberar memoria
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       
       console.log('✅ PDF generado exitosamente');
@@ -211,6 +274,9 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
           </p>
           <p style={{ fontSize: '14px', color: '#888', margin: '8px 0 0 0' }}>
             📅 {formatearFecha(fecha)}
+          </p>
+          <p style={{ fontSize: '12px', color: '#666', margin: '8px 0 0 0', fontStyle: 'italic' }}>
+            {obtenerPeriodo()}
           </p>
         </div>
 

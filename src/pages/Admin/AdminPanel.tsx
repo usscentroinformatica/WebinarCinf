@@ -158,6 +158,11 @@ const AdminPanel = () => {
         setPeriodo(data.periodo || '');
         setSpreadsheetId(data.spreadsheetId || '');
         
+        // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
+        localStorage.setItem('webinar_data', JSON.stringify({
+          periodo: data.periodo || 'WEBINAR DE CAPACITACIÓN'
+        }));
+        
         if (data.spreadsheetUrl) {
           setPasoActual(3);
         } else if (data.googleScriptUrl) {
@@ -187,6 +192,11 @@ const AdminPanel = () => {
         periodo: periodo || 'NUEVO PERIODO',
         fechaActualizacion: new Date().toISOString()
       });
+
+      // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
+      localStorage.setItem('webinar_data', JSON.stringify({
+        periodo: periodo || 'WEBINAR DE CAPACITACIÓN'
+      }));
 
       setMensaje('✅ Configuración guardada. Ahora puedes crear la hoja.');
       setPasoActual(2);
@@ -246,6 +256,11 @@ const AdminPanel = () => {
           periodo: periodo,
           fechaActualizacion: new Date().toISOString()
         });
+
+        // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
+        localStorage.setItem('webinar_data', JSON.stringify({
+          periodo: periodo
+        }));
 
         setSpreadsheetId(newSpreadsheetId);
         setMensaje(`✅ ¡Hoja creada!\n📊 ${spreadsheetUrl}`);
