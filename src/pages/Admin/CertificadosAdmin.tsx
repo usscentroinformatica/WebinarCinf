@@ -16,12 +16,13 @@ interface RegistroCertificado {
   fecha: string;
 }
 
-// 🔥 RECIBIR PERÍODO COMO PROP
+// 🔥 DEFINIR LAS PROPS - ESTO ES LO QUE FALTABA
 interface CertificadosAdminProps {
-  periodo: string;  // ← AGREGAR ESTA LÍNEA
+  periodo: string;
 }
 
-const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {  // ← RECIBIR periodo
+// 🔥 RECIBIR PERÍODO COMO PROP
+const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [registros, setRegistros] = useState<RegistroCertificado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +30,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {  
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
 
-  // Extraer año y mes del período
+  // Extraer año y mes del período para mostrar
   const extraerFechaPeriodo = (periodoStr: string) => {
     const partes = periodoStr.split(' ');
     const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
