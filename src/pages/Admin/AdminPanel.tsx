@@ -19,7 +19,7 @@ const AdminPanel = () => {
   const [editandoUrl, setEditandoUrl] = useState(false);
   const [editandoPeriodo, setEditandoPeriodo] = useState(false);
 
-  // 🔥 NUEVO: Estado para la pestaña activa
+  // 🔥 Estado para la pestaña activa
   const [tabActiva, setTabActiva] = useState<'config' | 'certificados'>('config');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -409,7 +409,7 @@ const AdminPanel = () => {
           </button>
         </div>
 
-        {/* 🔥 NUEVO: Pestañas de navegación */}
+        {/* 🔥 PESTAÑAS DE NAVEGACIÓN */}
         <div style={{ 
           display: 'flex', 
           gap: '10px', 
@@ -861,7 +861,7 @@ const AdminPanel = () => {
             ============================================================ */}
         {tabActiva === 'certificados' && (
           <div style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
-            <CertificadosAdmin />
+            <CertificadosAdmin periodo={configActual?.periodo || 'WEBINAR NO CONFIGURADO'} />
           </div>
         )}
 

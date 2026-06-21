@@ -16,13 +16,30 @@ interface RegistroCertificado {
   fecha: string;
 }
 
-const CertificadosAdmin: React.FC = () => {
+// 🔥 RECIBIR PERÍODO COMO PROP
+interface CertificadosAdminProps {
+  periodo: string;  // ← AGREGAR ESTA LÍNEA
+}
+
+const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {  // ← RECIBIR periodo
   const [registros, setRegistros] = useState<RegistroCertificado[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
+
+  // Extraer año y mes del período
+  const extraerFechaPeriodo = (periodoStr: string) => {
+    const partes = periodoStr.split(' ');
+    const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+    const mes = partes.find(p => meses.includes(p.toUpperCase()));
+    const año = partes.find(p => /^\d{4}$/.test(p));
+    return { mes: mes || '', año: año || '' };
+  };
+
+  const { mes, año } = extraerFechaPeriodo(periodo);
+  const tituloPeriodo = mes && año ? `${mes} ${año}` : periodo;
 
   useEffect(() => {
     const cargarDatos = async () => {
@@ -51,7 +68,6 @@ const CertificadosAdmin: React.FC = () => {
       const response = await fetch(`https://opensheet.elk.sh/${spreadsheetId}/Respuestas`);
       if (response.ok) {
         const data = await response.json();
-        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
         const certificados = data
           .filter((row: any) => row['Solicita certificado']?.toLowerCase() === 'si')
           .map((row: any, index: number) => ({
@@ -73,7 +89,6 @@ const CertificadosAdmin: React.FC = () => {
     }
   };
 
-  // 🔥 ACTUALIZAR PAGADO
   const togglePagado = async (fila: number, valorActual: string) => {
     const nuevoValor = valorActual === 'SI' ? 'NO' : 'SI';
     setMensaje('');
@@ -101,6 +116,11 @@ const CertificadosAdmin: React.FC = () => {
     }
   };
 
+  // Contadores
+  const totalSolicitudes = registros.length;
+  const pagados = registros.filter(r => r.pagado === 'SI').length;
+  const pendientes = totalSolicitudes - pagados;
+
   if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px' }}>
@@ -113,16 +133,49 @@ const CertificadosAdmin: React.FC = () => {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2 style={{ color: '#5a2290', marginBottom: '20px' }}>
-        📜 Certificados - {new Date().getFullYear()}
-      </h2>
-      
+      {/* ENCABEZADO CON PERÍODO */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '16px',
+        marginBottom: '24px',
+        padding: '16px 20px',
+        backgroundColor: '#f8f9fa',
+        borderRadius: '12px',
+        border: '1px solid #e0e0e0'
+      }}>
+        <div>
+          <h2 style={{ color: '#5a2290', margin: 0, fontSize: '22px' }}>
+            📜 Certificados
+          </h2>
+          <p style={{ color: '#666', margin: '4px 0 0', fontSize: '14px' }}>
+            Período: <strong style={{ color: '#5a2290' }}>{tituloPeriodo}</strong>
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#5a2290' }}>{totalSolicitudes}</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>Total</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#63ed12' }}>{pagados}</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>✅ Pagados</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#ff6d00' }}>{pendientes}</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>⏳ Pendientes</div>
+          </div>
+        </div>
+      </div>
+
       {mensaje && <div style={{ padding: '12px 16px', backgroundColor: '#e8f5e1', color: '#1a5e20', borderRadius: '8px', marginBottom: '16px' }}>{mensaje}</div>}
       {error && <div style={{ padding: '12px 16px', backgroundColor: '#fce8e6', color: '#c5221f', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
 
       {registros.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8f9fa', borderRadius: '12px', color: '#666' }}>
-          <p style={{ fontSize: '18px' }}>📭 No hay solicitudes de certificado aún</p>
+          <p style={{ fontSize: '18px' }}>📭 No hay solicitudes de certificado para este período</p>
           <p style={{ fontSize: '14px' }}>Los estudiantes que soliciten certificado aparecerán aquí</p>
         </div>
       ) : (
@@ -149,13 +202,13 @@ const CertificadosAdmin: React.FC = () => {
                     <button
                       onClick={() => togglePagado(registro.fila, registro.pagado)}
                       style={{
-                        width: '40px',
-                        height: '40px',
+                        width: '36px',
+                        height: '36px',
                         borderRadius: '50%',
                         border: `2px solid ${registro.pagado === 'SI' ? '#63ed12' : '#ccc'}`,
                         backgroundColor: registro.pagado === 'SI' ? '#63ed12' : 'white',
                         cursor: 'pointer',
-                        fontSize: '20px',
+                        fontSize: '18px',
                         transition: 'all 0.3s ease',
                         display: 'flex',
                         alignItems: 'center',
@@ -174,16 +227,17 @@ const CertificadosAdmin: React.FC = () => {
                           fecha: registro.fecha
                         })}
                         style={{
-                          padding: '8px 20px',
+                          padding: '6px 16px',
                           backgroundColor: '#5a2290',
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
                           cursor: 'pointer',
                           fontWeight: '600',
+                          fontSize: '13px',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '8px',
+                          gap: '6px',
                           transition: 'all 0.3s ease'
                         }}
                         onMouseEnter={(e) => {
@@ -195,7 +249,7 @@ const CertificadosAdmin: React.FC = () => {
                           e.currentTarget.style.color = 'white';
                         }}
                       >
-                        📄 Ver Certificado
+                        📄 Ver
                       </button>
                     ) : (
                       <span style={{ color: '#999', fontSize: '12px', fontStyle: 'italic' }}>
