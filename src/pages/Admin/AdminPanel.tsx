@@ -6,6 +6,11 @@ import * as XLSX from 'xlsx';
 import CertificadosAdmin from './CertificadosAdmin';
 
 const AdminPanel = () => {
+  // 🔥 ESTADOS PARA CONTROL DE SESIÓN
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [sesionValida, setSesionValida] = useState(false);
+  
+  // Estados existentes
   const [googleScriptUrl, setGoogleScriptUrl] = useState('');
   const [periodo, setPeriodo] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,21 +24,127 @@ const AdminPanel = () => {
   const [editandoUrl, setEditandoUrl] = useState(false);
   const [editandoPeriodo, setEditandoPeriodo] = useState(false);
 
-  // 🔥 Estado para la pestaña activa
+  // Estado para la pestaña activa
   const [tabActiva, setTabActiva] = useState<'config' | 'certificados'>('config');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const cerrarSesion = () => {
-    localStorage.removeItem('isAdmin');
-    localStorage.removeItem('adminEmail');
-    localStorage.removeItem('webinar_data');
-    window.location.href = '/';
+  // 🔥 FUNCIÓN PARA VERIFICAR LA SESIÓN
+  const verificarSesion = () => {
+    try {
+      const isAdmin = localStorage.getItem('isAdmin');
+      const adminEmail = localStorage.getItem('adminEmail');
+      const timestamp = localStorage.getItem('adminSessionTimestamp');
+      
+      console.log('🔍 Verificando sesión:', { 
+        isAdmin, 
+        adminEmail, 
+        timestamp 
+      });
+      
+      // Verificar si existe la sesión
+      if (!isAdmin || isAdmin !== 'true' || !adminEmail) {
+        console.warn('⚠️ Sesión no válida - Datos incompletos');
+        limpiarSesion();
+        return false;
+      }
+      
+      // Verificar tiempo de sesión (opcional)
+      // Si pasaron más de 8 horas, la sesión expira
+      if (timestamp) {
+        const sessionTime = parseInt(timestamp);
+        const currentTime = Date.now();
+        const horasTranscurridas = (currentTime - sessionTime) / (1000 * 60 * 60);
+        
+        if (horasTranscurridas > 8) {
+          console.warn('⚠️ Sesión expirada (más de 8 horas)');
+          limpiarSesion();
+          return false;
+        }
+      }
+      
+      console.log('✅ Sesión válida');
+      setSesionValida(true);
+      setVerificandoSesion(false);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error verificando sesión:', error);
+      limpiarSesion();
+      return false;
+    }
   };
 
+  // 🔥 FUNCIÓN PARA LIMPIAR LA SESIÓN
+  const limpiarSesion = () => {
+    localStorage.removeItem('isAdmin');
+    localStorage.removeItem('adminEmail');
+    localStorage.removeItem('adminSessionTimestamp');
+    localStorage.removeItem('webinar_data');
+    sessionStorage.clear();
+    setSesionValida(false);
+    setVerificandoSesion(false);
+  };
+
+  // 🔥 FUNCIÓN PARA CERRAR SESIÓN
+  const cerrarSesion = () => {
+    limpiarSesion();
+    window.location.href = '/login-admin';
+  };
+
+  // 🔥 EFECTO 1: Verificar sesión al cargar el componente
   useEffect(() => {
-    cargarConfiguracion();
+    verificarSesion();
   }, []);
+
+  // 🔥 EFECTO 2: Verificar cuando la página recibe foco
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        verificarSesion();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // 🔥 EFECTO 3: Verificar cada 60 segundos (sesión activa)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      verificarSesion();
+    }, 60000); // 60 segundos
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🔥 EFECTO 4: Cargar configuración SOLO si la sesión es válida
+  useEffect(() => {
+    if (sesionValida) {
+      cargarConfiguracion();
+    }
+  }, [sesionValida]);
+
+  // 🔥 INTERCEPTAR NAVEGACIÓN (cuando el usuario usa el botón "atrás")
+  useEffect(() => {
+    // Esto previene que el usuario vuelva al panel si cerró sesión
+    window.addEventListener('popstate', () => {
+      verificarSesion();
+    });
+    
+    return () => {
+      window.removeEventListener('popstate', () => {
+        verificarSesion();
+      });
+    };
+  }, []);
+
+  // ============================================================
+  // FUNCIONES EXISTENTES
+  // ============================================================
 
   const cargarConfiguracion = async () => {
     try {
@@ -304,7 +415,17 @@ const AdminPanel = () => {
     }
   };
 
-  const PasoIndicator = ({ numero, titulo, activo, completado, onClick }: { numero: number; titulo: string; activo: boolean; completado: boolean; onClick: () => void }) => (
+  // ============================================================
+  // COMPONENTES DE UI
+  // ============================================================
+
+  const PasoIndicator = ({ numero, titulo, activo, completado, onClick }: { 
+    numero: number; 
+    titulo: string; 
+    activo: boolean; 
+    completado: boolean; 
+    onClick: () => void 
+  }) => (
     <div 
       onClick={onClick}
       style={{ 
@@ -354,6 +475,57 @@ const AdminPanel = () => {
     </div>
   );
 
+  // ============================================================
+  // RENDER: LOADING DE VERIFICACIÓN
+  // ============================================================
+  
+  if (verificandoSesion) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      }}>
+        <div style={{
+          background: 'white',
+          padding: '40px',
+          borderRadius: '16px',
+          textAlign: 'center',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.1)'
+        }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            margin: '0 auto 20px',
+            border: '4px solid #e0e0e0',
+            borderTop: '4px solid #5a2290',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <h2 style={{ color: '#5a2290' }}>Verificando sesión...</h2>
+          <p style={{ color: '#666' }}>Por favor espera</p>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
+
+  // Si la sesión no es válida, no renderizar nada (ya redirigió)
+  if (!sesionValida) {
+    return null;
+  }
+
+  // ============================================================
+  // RENDER: PANEL PRINCIPAL
+  // ============================================================
+
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -362,6 +534,7 @@ const AdminPanel = () => {
     }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         
+        {/* HEADER CON BOTÓN DE CERRAR SESIÓN */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -409,7 +582,7 @@ const AdminPanel = () => {
           </button>
         </div>
 
-        {/* 🔥 PESTAÑAS DE NAVEGACIÓN */}
+        {/* PESTAÑAS DE NAVEGACIÓN */}
         <div style={{ 
           display: 'flex', 
           gap: '10px', 
@@ -461,6 +634,7 @@ const AdminPanel = () => {
             ============================================================ */}
         {tabActiva === 'config' && (
           <>
+            {/* INDICADORES DE PASOS */}
             <div style={{ 
               background: 'white', 
               borderRadius: '16px', 
@@ -516,6 +690,7 @@ const AdminPanel = () => {
               </div>
             </div>
 
+            {/* BOTONES DE NAVEGACIÓN ENTRE PASOS */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center' }}>
               {pasoActual > 1 && (
                 <button
@@ -564,9 +739,10 @@ const AdminPanel = () => {
               )}
             </div>
 
+            {/* CONTENIDO DE CADA PASO */}
             <div style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
               
-              {/* PASO 1 */}
+              {/* PASO 1: Configurar URL */}
               {pasoActual === 1 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>📝 Configurar URL del Apps Script</h2>
@@ -678,7 +854,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* PASO 2 */}
+              {/* PASO 2: Crear hoja */}
               {pasoActual === 2 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>🚀 Crear hoja de cálculo</h2>
@@ -721,7 +897,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* PASO 3 */}
+              {/* PASO 3: Cargar estudiantes */}
               {pasoActual === 3 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>👥 Cargar estudiantes</h2>
@@ -839,6 +1015,7 @@ const AdminPanel = () => {
                 </div>
               )}
 
+              {/* MENSAJE DE ESTADO */}
               {mensaje && (
                 <div style={{
                   marginTop: '20px',

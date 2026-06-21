@@ -1,108 +1,260 @@
 // src/components/CertificadoWebinar.tsx
-import React, { useRef, useState } from 'react';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
-import logoUss from '../assets/uss.png';
+import React, { useState } from 'react';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 
-interface CertificadoProps {
+interface CertificadoWebinarProps {
   nombre: string;
   fecha: string;
   onClose: () => void;
 }
 
-const CertificadoWebinar: React.FC<CertificadoProps> = ({ nombre, fecha, onClose }) => {
-  const certificadoRef = useRef<HTMLDivElement>(null);
-  const [descargando, setDescargando] = useState(false);
+const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, onClose }) => {
+  const [generando, setGenerando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const obtenerMes = (fechaStr: string) => {
-    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    const fecha = new Date(fechaStr);
-    return meses[fecha.getMonth()];
-  };
-
-  const obtenerAnio = (fechaStr: string) => {
-    const fecha = new Date(fechaStr);
-    return fecha.getFullYear();
-  };
-
-  const mesActual = obtenerMes(fecha);
-  const anioActual = obtenerAnio(fecha);
-  const diaActual = new Date(fecha).getDate();
-  const fechaFormateada = `${diaActual} de ${mesActual} del ${anioActual}`;
-
-  const descargarPDF = async () => {
-    if (!certificadoRef.current) return;
-    setDescargando(true);
+  const formatearFecha = (fechaStr: string) => {
+    if (!fechaStr) return 'Chiclayo, 2026';
+    
+    const meses = [
+      'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+      'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'
+    ];
+    
     try {
-      const canvas = await html2canvas(certificadoRef.current, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' });
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('landscape', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Certificado_Webinar_${nombre.replace(/\s+/g, '_')}.pdf`);
-    } catch (error) {
-      console.error('Error al generar PDF:', error);
+      const fecha = new Date(fechaStr);
+      const dia = fecha.getDate();
+      const mes = meses[fecha.getMonth()];
+      const año = fecha.getFullYear();
+      return `Chiclayo, ${dia} de ${mes} del ${año}`;
+    } catch {
+      return 'Chiclayo, 2026';
+    }
+  };
+
+  const generarPDF = async () => {
+    if (!nombre.trim()) {
+      setErrorMsg('El nombre es obligatorio');
+      return;
+    }
+
+    setGenerando(true);
+    setErrorMsg('');
+
+    try {
+      // 1. Cargar la plantilla PDF
+      const templateUrl = '/src/assets/certificado.pdf';
+      console.log('📄 Cargando plantilla:', templateUrl);
+      
+      const response = await fetch(templateUrl);
+      
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar la plantilla (${response.status})`);
+      }
+      
+      const templateBytes = await response.arrayBuffer();
+      console.log('✅ Plantilla cargada:', templateBytes.byteLength, 'bytes');
+      
+      // 2. Cargar el PDF
+      const pdfDoc = await PDFDocument.load(templateBytes);
+      pdfDoc.registerFontkit(fontkit);
+      
+      // 3. Obtener la primera página
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      
+      if (!firstPage) {
+        throw new Error('El PDF no tiene páginas');
+      }
+      
+      // 4. Dimensiones de la página
+      const { width, height } = firstPage.getSize();
+      console.log('📐 Dimensiones:', width, 'x', height);
+      
+      // 5. Cargar fuente
+      const font = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      
+      // 6. DIBUJAR EL NOMBRE
+      const nombreFontSize = 36;
+      const nombreWidth = font.widthOfTextAtSize(nombre, nombreFontSize);
+      const nombreX = (width - nombreWidth) / 2;
+      const nombreY = height - 280;
+      
+      firstPage.drawText(nombre, {
+        x: nombreX,
+        y: nombreY,
+        size: nombreFontSize,
+        font: font,
+        color: rgb(0.35, 0.13, 0.56),
+      });
+      
+      // 7. DIBUJAR LA FECHA
+      const fechaTexto = formatearFecha(fecha);
+      const fechaFontSize = 16;
+      const fechaWidth = font.widthOfTextAtSize(fechaTexto, fechaFontSize);
+      const fechaX = (width - fechaWidth) / 2;
+      const fechaY = height - 380;
+      
+      firstPage.drawText(fechaTexto, {
+        x: fechaX,
+        y: fechaY,
+        size: fechaFontSize,
+        font: font,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      
+      // 8. Guardar el PDF como Uint8Array
+      const pdfBytes = await pdfDoc.save();
+      
+      // 🔥 9. SOLUCIÓN DEFINITIVA: Convertir Uint8Array a ArrayBuffer
+      // Crear un nuevo ArrayBuffer a partir del Uint8Array
+      const arrayBuffer = new ArrayBuffer(pdfBytes.length);
+      const view = new Uint8Array(arrayBuffer);
+      view.set(pdfBytes);
+      
+      // Crear el Blob con el ArrayBuffer
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // 10. Descargar
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Liberar memoria
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      
+      console.log('✅ PDF generado exitosamente');
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      setErrorMsg(`Error: ${error.message}`);
     } finally {
-      setDescargando(false);
+      setGenerando(false);
     }
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '20px' }}>
-      <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '30px', maxWidth: '900px', width: '100%', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}>
-        <h2 style={{ textAlign: 'center', color: '#5a2290', marginBottom: '20px' }}>🎓 Tu Certificado Webinar</h2>
-        
-        <div ref={certificadoRef} style={{ width: '100%', maxWidth: '800px', margin: '0 auto', padding: '40px 45px', border: '8px solid #5a2290', borderRadius: '12px', background: 'white', position: 'relative', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontFamily: 'Times New Roman, serif' }}>
-          <div style={{ position: 'absolute', inset: '12px', border: '2px solid #63ed12', borderRadius: '8px', pointerEvents: 'none' }} />
-          
-          <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <img src={logoUss} alt="USS" style={{ height: '60px', objectFit: 'contain' }} />
-          </div>
-          
-          <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-            <h1 style={{ fontSize: '34px', fontWeight: 'bold', color: '#5a2290', margin: 0, letterSpacing: '4px', fontFamily: 'Times New Roman, serif' }}>CERTIFICADO</h1>
-          </div>
-          
-          <div style={{ width: '80px', height: '3px', backgroundColor: '#63ed12', margin: '0 auto 16px' }} />
-          
-          <div style={{ textAlign: 'center', padding: '0 10px' }}>
-            <p style={{ fontSize: '16px', color: '#333', marginBottom: '6px', fontFamily: 'Times New Roman, serif' }}>Se otorga el presente certificado a:</p>
-            
-            <h2 style={{ fontSize: '32px', fontWeight: 'bold', color: '#5a2290', margin: '10px 0 14px', textTransform: 'uppercase', letterSpacing: '2px', borderBottom: '2px solid #63ed12', paddingBottom: '10px', display: 'inline-block', fontFamily: 'Times New Roman, serif' }}>
-              {nombre.toUpperCase()}
-            </h2>
-            
-            <p style={{ fontSize: '15px', color: '#333', lineHeight: '1.9', textAlign: 'justify', fontFamily: 'Times New Roman, serif', marginTop: '10px' }}>
-              Por haber participado en el Webinar <strong>“Transforma PowerPoint en una herramienta de presentaciones impactantes”</strong>,
-              desarrollado por el <strong>Centro de Informática de la Universidad Señor de Sipán</strong>,
-              realizado el <strong>{fechaFormateada}</strong>,
-              con una duración de <strong>02 horas académicas</strong>,
-              fortaleciendo sus competencias digitales en la creación de presentaciones profesionales,
-              dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.
-            </p>
-          </div>
-          
-          <div style={{ marginTop: '28px', textAlign: 'center', borderTop: '1px solid #e0e0e0', paddingTop: '18px' }}>
-            <p style={{ fontSize: '14px', color: '#555', margin: 0, fontFamily: 'Times New Roman, serif', fontStyle: 'italic' }}>
-              <strong>Chiclayo, {fechaFormateada}</strong>
-            </p>
-            <div style={{ marginTop: '14px' }}>
-              <div style={{ width: '220px', height: '1px', backgroundColor: '#333', margin: '0 auto 6px' }} />
-              <p style={{ fontSize: '14px', color: '#333', margin: 0, fontWeight: '600', fontFamily: 'Times New Roman, serif' }}>Mag. Daniel Edgardo Salazar Lluén</p>
-              <p style={{ fontSize: '12px', color: '#666', margin: 0, fontFamily: 'Times New Roman, serif' }}>Jefe del Centro de Informática</p>
-            </div>
-          </div>
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.85)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: '20px'
+    }}>
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '16px',
+        padding: '30px',
+        maxWidth: '480px',
+        width: '100%',
+        position: 'relative',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+      }}>
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            background: '#c5221f',
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '36px',
+            height: '36px',
+            fontSize: '18px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          ✕
+        </button>
+
+        <h2 style={{ 
+          color: '#5a2290', 
+          marginTop: 0,
+          textAlign: 'center',
+          fontSize: '22px'
+        }}>
+          🎓 Certificado
+        </h2>
+
+        <div style={{
+          backgroundColor: '#f8f9fa',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '20px'
+        }}>
+          <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '14px' }}>
+            <strong>Participante:</strong>
+          </p>
+          <p style={{ 
+            fontSize: '20px', 
+            color: '#5a2290', 
+            fontWeight: 'bold', 
+            margin: 0,
+            wordBreak: 'break-word'
+          }}>
+            {nombre}
+          </p>
+          <p style={{ fontSize: '14px', color: '#888', margin: '8px 0 0 0' }}>
+            📅 {formatearFecha(fecha)}
+          </p>
         </div>
-        
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '24px', flexWrap: 'wrap' }}>
-          <button onClick={descargarPDF} disabled={descargando} style={{ padding: '14px 40px', backgroundColor: descargando ? '#ccc' : '#63ed12', color: descargando ? '#999' : '#000', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: descargando ? 'not-allowed' : 'pointer', transition: 'all 0.3s ease' }}>
-            {descargando ? '⏳ Generando...' : '📥 Descargar PDF'}
-          </button>
-          <button onClick={onClose} style={{ padding: '14px 40px', backgroundColor: '#5a2290', color: 'white', border: 'none', borderRadius: '8px', fontSize: '16px', fontWeight: '600', cursor: 'pointer', transition: 'all 0.3s ease' }}>
-            ✖️ Cerrar
-          </button>
-        </div>
+
+        {errorMsg && (
+          <div style={{
+            padding: '12px',
+            backgroundColor: '#fce8e6',
+            color: '#c5221f',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            fontSize: '14px',
+            textAlign: 'center'
+          }}>
+            ❌ {errorMsg}
+          </div>
+        )}
+
+        <button
+          onClick={generarPDF}
+          disabled={generando}
+          style={{
+            width: '100%',
+            padding: '14px',
+            backgroundColor: generando ? '#ccc' : '#5a2290',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: generando ? 'not-allowed' : 'pointer',
+            fontWeight: '600',
+            fontSize: '16px',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          {generando ? '⏳ Generando...' : '📥 Descargar Certificado'}
+        </button>
+
+        <p style={{
+          fontSize: '12px',
+          color: '#999',
+          textAlign: 'center',
+          marginTop: '16px'
+        }}>
+          Se usará la plantilla oficial del Centro de Informática
+        </p>
       </div>
     </div>
   );
