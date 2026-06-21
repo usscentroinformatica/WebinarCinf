@@ -1,5 +1,5 @@
 // src/components/CertificadoWebinar.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 
@@ -12,6 +12,9 @@ interface CertificadoWebinarProps {
 const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, onClose }) => {
   const [generando, setGenerando] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [cargandoVistaPrevia, setCargandoVistaPrevia] = useState(true);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // 🔥 OBTENER EL PERÍODO DESDE LOCALSTORAGE
   const obtenerPeriodo = () => {
@@ -54,13 +57,15 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaTexto}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
   };
 
-  const generarPDF = async () => {
+  // 🔥 GENERAR VISTA PREVIA DEL PDF
+  const generarVistaPrevia = async () => {
     if (!nombre.trim()) {
       setErrorMsg('El nombre es obligatorio');
+      setCargandoVistaPrevia(false);
       return;
     }
 
-    setGenerando(true);
+    setCargandoVistaPrevia(true);
     setErrorMsg('');
 
     try {
@@ -97,13 +102,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 🔥 6. DIBUJAR EL NOMBRE (MÁS ARRIBA)
+      // 🔥 6. DIBUJAR EL NOMBRE
       const nombreFontSize = 36;
       const nombreWidth = fontBold.widthOfTextAtSize(nombre, nombreFontSize);
       const nombreX = (width - nombreWidth) / 2;
-      const nombreY = height - 240; // Subido
-      
-      console.log(`📝 Dibujando nombre en y=${nombreY}`);
+      const nombreY = height - 240;
       
       firstPage.drawText(nombre, {
         x: nombreX,
@@ -153,14 +156,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 8. DIBUJAR LA FECHA (Chiclayo, mes del año - A LA DERECHA)
+      // 🔥 8. DIBUJAR LA FECHA
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = 16;
       const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
       const fechaX = width - fechaWidth - 80;
       const fechaY = 150;
-      
-      console.log(`📅 Dibujando fecha "${fechaTexto}" en x=${fechaX}, y=${fechaY}`);
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
@@ -173,7 +174,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       // 9. Guardar el PDF
       const pdfBytes = await pdfDoc.save();
       
-      // 10. Descargar
+      // 10. Convertir a URL para vista previa
       const arrayBuffer = new ArrayBuffer(pdfBytes.length);
       const view = new Uint8Array(arrayBuffer);
       view.set(pdfBytes);
@@ -181,24 +182,68 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      setPdfUrl(url);
+      setCargandoVistaPrevia(false);
       
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      
-      console.log('✅ PDF generado exitosamente');
+      console.log('✅ Vista previa generada exitosamente');
       
     } catch (error: any) {
       console.error('❌ Error:', error);
       setErrorMsg(`Error: ${error.message}`);
-    } finally {
+      setCargandoVistaPrevia(false);
+    }
+  };
+
+  // 🔥 GENERAR Y DESCARGAR PDF
+  const descargarPDF = async () => {
+    setGenerando(true);
+    
+    try {
+      if (!pdfUrl) {
+        // Si no hay vista previa, generar primero
+        await generarVistaPrevia();
+        // Esperar un momento y luego descargar
+        setTimeout(() => {
+          if (pdfUrl) {
+            const link = document.createElement('a');
+            link.href = pdfUrl;
+            link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+          setGenerando(false);
+        }, 500);
+        return;
+      }
+
+      // Descargar desde la URL existente
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `certificado-${nombre.replace(/\s+/g, '-').toLowerCase()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setGenerando(false);
+      
+    } catch (error) {
+      console.error('❌ Error al descargar:', error);
+      setErrorMsg('Error al descargar el PDF');
       setGenerando(false);
     }
   };
+
+  // 🔥 GENERAR VISTA PREVIA AL ABRIR EL MODAL
+  useEffect(() => {
+    generarVistaPrevia();
+    
+    // Limpiar URL al desmontar
+    return () => {
+      if (pdfUrl) {
+        URL.revokeObjectURL(pdfUrl);
+      }
+    };
+  }, [nombre, fecha]);
 
   return (
     <div style={{
@@ -217,14 +262,21 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       <div style={{
         backgroundColor: 'white',
         borderRadius: '16px',
-        padding: '30px',
-        maxWidth: '480px',
+        padding: '20px',
+        maxWidth: '95%',
+        maxHeight: '95%',
         width: '100%',
         position: 'relative',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
+        {/* Botón cerrar */}
         <button
-          onClick={onClose}
+          onClick={() => {
+            if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+            onClose();
+          }}
           style={{
             position: 'absolute',
             top: '10px',
@@ -233,10 +285,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
             color: 'white',
             border: 'none',
             borderRadius: '50%',
-            width: '36px',
-            height: '36px',
-            fontSize: '18px',
+            width: '40px',
+            height: '40px',
+            fontSize: '20px',
             cursor: 'pointer',
+            zIndex: 10,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center'
@@ -245,82 +298,165 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
           ✕
         </button>
 
-        <h2 style={{ 
-          color: '#5a2290', 
-          marginTop: 0,
-          textAlign: 'center',
-          fontSize: '22px'
-        }}>
-          🎓 Certificado
-        </h2>
-
+        {/* Encabezado */}
         <div style={{
-          backgroundColor: '#f8f9fa',
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '20px'
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '10px 20px',
+          borderBottom: '1px solid #e0e0e0',
+          marginBottom: '15px'
         }}>
-          <p style={{ margin: '0 0 8px 0', color: '#666', fontSize: '14px' }}>
-            <strong>Participante:</strong>
-          </p>
-          <p style={{ 
-            fontSize: '20px', 
-            color: '#5a2290', 
-            fontWeight: 'bold', 
-            margin: 0,
-            wordBreak: 'break-word'
-          }}>
-            {nombre}
-          </p>
-          <p style={{ fontSize: '14px', color: '#888', margin: '8px 0 0 0' }}>
-            📅 {formatearFecha(fecha)}
-          </p>
-          <p style={{ fontSize: '12px', color: '#666', margin: '8px 0 0 0', fontStyle: 'italic' }}>
-            {obtenerPeriodo()}
-          </p>
+          <div>
+            <h2 style={{ 
+              color: '#5a2290', 
+              margin: 0,
+              fontSize: '20px'
+            }}>
+              🎓 Vista Previa del Certificado
+            </h2>
+            <p style={{ 
+              fontSize: '13px', 
+              color: '#666', 
+              margin: '4px 0 0'
+            }}>
+              <strong>Participante:</strong> {nombre}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={descargarPDF}
+              disabled={generando || cargandoVistaPrevia}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: (generando || cargandoVistaPrevia) ? '#ccc' : '#5a2290',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: (generando || cargandoVistaPrevia) ? 'not-allowed' : 'pointer',
+                fontWeight: '600',
+                fontSize: '14px',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              {generando ? '⏳ Generando...' : '📥 Descargar PDF'}
+            </button>
+          </div>
         </div>
 
-        {errorMsg && (
-          <div style={{
-            padding: '12px',
-            backgroundColor: '#fce8e6',
-            color: '#c5221f',
-            borderRadius: '8px',
-            marginBottom: '16px',
-            fontSize: '14px',
-            textAlign: 'center'
-          }}>
-            ❌ {errorMsg}
-          </div>
-        )}
-
-        <button
-          onClick={generarPDF}
-          disabled={generando}
-          style={{
-            width: '100%',
-            padding: '14px',
-            backgroundColor: generando ? '#ccc' : '#5a2290',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: generando ? 'not-allowed' : 'pointer',
-            fontWeight: '600',
-            fontSize: '16px',
-            transition: 'all 0.3s ease'
-          }}
-        >
-          {generando ? '⏳ Generando...' : '📥 Descargar Certificado'}
-        </button>
-
-        <p style={{
-          fontSize: '12px',
-          color: '#999',
-          textAlign: 'center',
-          marginTop: '16px'
+        {/* Área de vista previa */}
+        <div style={{
+          flex: 1,
+          minHeight: '500px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          position: 'relative'
         }}>
-          Se usará la plantilla oficial del Centro de Informática
-        </p>
+          {cargandoVistaPrevia ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              minHeight: '500px',
+              color: '#666'
+            }}>
+              <div style={{
+                width: '50px',
+                height: '50px',
+                border: '4px solid #e0e0e0',
+                borderTop: '4px solid #5a2290',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                marginBottom: '16px'
+              }} />
+              <p>Generando vista previa...</p>
+              <style>{`
+                @keyframes spin {
+                  0% { transform: rotate(0deg); }
+                  100% { transform: rotate(360deg); }
+                }
+              `}</style>
+            </div>
+          ) : errorMsg ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              minHeight: '500px',
+              color: '#c5221f',
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <p style={{ fontSize: '18px' }}>❌ {errorMsg}</p>
+              <button
+                onClick={generarVistaPrevia}
+                style={{
+                  marginTop: '16px',
+                  padding: '10px 24px',
+                  backgroundColor: '#5a2290',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer'
+                }}
+              >
+                Reintentar
+              </button>
+            </div>
+          ) : pdfUrl ? (
+            <iframe
+              ref={iframeRef}
+              src={pdfUrl}
+              style={{
+                width: '100%',
+                height: '100%',
+                minHeight: '500px',
+                border: 'none',
+                borderRadius: '8px'
+              }}
+              title="Vista previa del certificado"
+            />
+          ) : (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100%',
+              minHeight: '500px',
+              color: '#999'
+            }}>
+              <p>No se pudo generar la vista previa</p>
+            </div>
+          )}
+        </div>
+
+        {/* Información adicional */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '12px 20px',
+          borderTop: '1px solid #e0e0e0',
+          marginTop: '15px',
+          fontSize: '12px',
+          color: '#888'
+        }}>
+          <div>
+            <span>📅 {formatearFecha(fecha)}</span>
+            <span style={{ marginLeft: '20px' }}>📄 {obtenerPeriodo()}</span>
+          </div>
+          <div>
+            <span style={{ color: '#5a2290' }}>✓ Certificado generado con la plantilla oficial</span>
+          </div>
+        </div>
       </div>
     </div>
   );
