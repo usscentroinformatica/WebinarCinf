@@ -56,7 +56,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           });
           
           if (configData.spreadsheetId && configData.googleScriptUrl) {
-            // 🔥 NUEVO: Usar el App Script en lugar de opensheet.elk.sh
+            // 🔥 CARGAR DATOS DESDE EL APP SCRIPT
             await cargarDatosDesdeAppScript(configData.spreadsheetId, configData.googleScriptUrl);
           } else {
             setError('Falta configuración (spreadsheetId o scriptUrl)');
@@ -74,14 +74,16 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     cargarDatos();
   }, []);
 
-  // 🔥 NUEVA FUNCIÓN: Cargar datos desde el App Script
+  // 🔥 CARGAR DATOS DESDE EL APP SCRIPT (SIN opensheet.elk.sh)
   const cargarDatosDesdeAppScript = async (spreadsheetId: string, scriptUrl: string) => {
     try {
       console.log('📡 Llamando al App Script para obtener respuestas...');
+      console.log('🔑 scriptUrl:', scriptUrl);
+      console.log('🔑 spreadsheetId:', spreadsheetId);
       
-      // Usar la URL directa del App Script
-      const url = `${scriptUrl}?action=getRespuestas&spreadsheetId=${spreadsheetId}`;
-      console.log('📡 URL:', url);
+      // 🔥 USAR EL PROXY DE VERCEL (EVITA CORS)
+      const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${spreadsheetId}`;
+      console.log('📡 URL del proxy:', url);
       
       const response = await fetch(url);
       
@@ -90,16 +92,20 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       }
       
       const result = await response.json();
-      console.log('📥 Respuesta del App Script:', result);
+      console.log('📥 Respuesta del proxy:', result);
       
       if (result.success && result.data) {
         const data = result.data;
-        console.log(`📄 ${data.length} registros encontrados`);
+        console.log(`📄 ${data.length} registros encontrados en la hoja`);
         
-        // Filtrar los que solicitan certificado
+        // Mostrar los datos para depurar
+        console.log('📝 Datos completos:', data);
+        
+        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO (Solicita certificado = "si")
         const certificados = data
           .filter((row: any) => {
-            const solicita = row['Solicita certificado']?.toLowerCase() || 'no';
+            const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
+            console.log(`🔍 ${row['Correo electrónico'] || 'sin email'} - Solicita: "${solicita}"`);
             return solicita === 'si';
           })
           .map((row: any, index: number) => ({
@@ -114,9 +120,10 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
             fecha: row['Marca temporal'] || new Date().toISOString()
           }));
         
-        console.log(`✅ ${certificados.length} certificados encontrados`);
+        console.log(`✅ ${certificados.length} certificados encontrados (solicitaron SI)`);
         setRegistros(certificados);
       } else {
+        console.error('❌ Error en la respuesta:', result);
         setError(result.error || 'Error al obtener los datos');
       }
       
