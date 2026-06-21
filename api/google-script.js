@@ -11,38 +11,36 @@ export default async function handler(req, res) {
   // Manejar GET
   if (req.method === 'GET') {
     try {
-      const { scriptUrl, action, periodo, email } = req.query;
+      // 🔥 EXTRAER TODOS LOS PARÁMETROS
+      const { scriptUrl, ...params } = req.query;
       
       console.log('📡 GET - scriptUrl:', scriptUrl);
-      console.log('📡 GET - action:', action);
-      console.log('📡 GET - periodo:', periodo);
-      console.log('📡 GET - email:', email);
+      console.log('📡 GET - todos los parámetros:', params);
       
       if (!scriptUrl) {
         return res.status(400).json({ error: 'Falta scriptUrl' });
       }
       
+      // 🔥 CONSTRUIR LA URL CON TODOS LOS PARÁMETROS (EXCEPTO scriptUrl)
       let targetUrl = scriptUrl;
-      const params = [];
+      const queryParams = [];
       
-      // 🔥 IMPORTANTE: SOLO agregar parámetros que NO sean email
-      // o si se necesita email, asegurarse de que sea válido
-      if (action) params.push(`action=${encodeURIComponent(action)}`);
-      if (periodo) params.push(`periodo=${encodeURIComponent(periodo)}`);
+      for (const [key, value] of Object.entries(params)) {
+        if (value) {
+          queryParams.push(`${key}=${encodeURIComponent(value)}`);
+        }
+      }
       
-      // 🔥 SOLO agregar email si es necesario y es válido
-      // Para crear hoja, NO se necesita email (según tu App Script)
-      // Si se necesita para otra cosa, descomentar la línea de abajo
-      // if (email) params.push(`email=${encodeURIComponent(email)}`);
-      
-      if (params.length > 0) {
-        targetUrl += `?${params.join('&')}`;
+      if (queryParams.length > 0) {
+        targetUrl += `?${queryParams.join('&')}`;
       }
       
       console.log('📤 GET llamando a:', targetUrl);
       
       const response = await fetch(targetUrl);
       const data = await response.json();
+      
+      console.log('📥 Respuesta GET:', data);
       
       return res.status(200).json(data);
       
@@ -56,6 +54,9 @@ export default async function handler(req, res) {
   if (req.method === 'POST') {
     try {
       const { scriptUrl, spreadsheetId, ...bodyData } = req.body;
+      
+      console.log('📡 POST - scriptUrl:', scriptUrl);
+      console.log('📡 POST - spreadsheetId:', spreadsheetId);
       
       if (!scriptUrl) {
         return res.status(400).json({ error: 'Falta scriptUrl' });
