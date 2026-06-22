@@ -71,24 +71,17 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     const partes = nombreCompleto.trim().split(' ');
     
     if (partes.length === 1) {
-      // Si solo tiene un nombre, devolverlo como nombre
       return { nombres: nombreCompleto, apellidos: '' };
     }
     
-    // Si tiene 2 partes: primer nombre + apellido
     if (partes.length === 2) {
       return { nombres: partes[0], apellidos: partes[1] };
     }
     
-    // Si tiene 3 o más partes: 
-    // - Nombres: primeras 2 partes (nombre + segundo nombre)
-    // - Apellidos: resto
     if (partes.length >= 3) {
-      // Si tiene 3 partes: nombre + apellido1 + apellido2
       if (partes.length === 3) {
         return { nombres: partes[0], apellidos: `${partes[1]} ${partes[2]}` };
       }
-      // Si tiene 4+ partes: tomar primeros 2 como nombres, resto como apellidos
       const nombres = partes.slice(0, 2).join(' ');
       const apellidos = partes.slice(2).join(' ');
       return { nombres, apellidos };
@@ -156,9 +149,9 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       console.log('📝 Nombres:', nombres);
       console.log('📝 Apellidos:', apellidos);
       
-      // 🔥 DIBUJAR LOS NOMBRES (PRIMERA LÍNEA)
-      const nombreFontSize = 34;
-      const nombreY = height - 230; // Posición para la primera línea
+      // 🔥 DIBUJAR LOS NOMBRES (PRIMERA LÍNEA) - MÁS PEQUEÑO Y MÁS ARRIBA
+      const nombreFontSize = 30; // 🔥 MÁS PEQUEÑO (antes 34)
+      const nombreY = height - 200; // 🔥 MÁS ARRIBA (antes 230)
       
       if (nombres) {
         const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
@@ -175,10 +168,10 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       
       // 🔥 DIBUJAR LOS APELLIDOS (SEGUNDA LÍNEA)
       if (apellidos) {
-        const apellidosFontSize = 34;
+        const apellidosFontSize = 30; // 🔥 MÁS PEQUEÑO (antes 34)
         const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
         const apellidosX = (width - apellidosWidth) / 2;
-        const apellidosY = nombreY - 50; // 50 puntos debajo de los nombres
+        const apellidosY = nombreY - 45; // 45 puntos debajo de los nombres
         
         firstPage.drawText(apellidos, {
           x: apellidosX,
@@ -189,11 +182,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (EN LA POSICIÓN ORIGINAL)
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 140;
-      const textY = height - 340; // Ajustado porque el nombre ahora ocupa 2 líneas
+      const textY = height - 290; // 🔥 POSICIÓN ORIGINAL (antes 340)
       const maxWidth = width - 280;
       
       const palabras = textoWebinar.split(' ');
