@@ -134,10 +134,10 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (MÁS A LA DERECHA)
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
-      const textX = 140; // 🔥 MOVER A LA DERECHA (antes 120)
+      const textX = 140;
       const textY = height - 290;
       const maxWidth = width - 280;
       
@@ -172,12 +172,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - MÁS A LA DERECHA
+      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - SUBIDA
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 140; // 🔥 MÁS A LA DERECHA (antes -120)
-      const fechaY = 210;
+      const fechaX = width - fechaWidth - 140;
+      const fechaY = 225; // 🔥 SUBIDO (antes 210)
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
