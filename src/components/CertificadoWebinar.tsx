@@ -66,6 +66,37 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
+  // 🔥 FUNCIÓN PARA DIVIDIR EL NOMBRE EN NOMBRES Y APELLIDOS
+  const dividirNombre = (nombreCompleto: string) => {
+    const partes = nombreCompleto.trim().split(' ');
+    
+    if (partes.length === 1) {
+      // Si solo tiene un nombre, devolverlo como nombre
+      return { nombres: nombreCompleto, apellidos: '' };
+    }
+    
+    // Si tiene 2 partes: primer nombre + apellido
+    if (partes.length === 2) {
+      return { nombres: partes[0], apellidos: partes[1] };
+    }
+    
+    // Si tiene 3 o más partes: 
+    // - Nombres: primeras 2 partes (nombre + segundo nombre)
+    // - Apellidos: resto
+    if (partes.length >= 3) {
+      // Si tiene 3 partes: nombre + apellido1 + apellido2
+      if (partes.length === 3) {
+        return { nombres: partes[0], apellidos: `${partes[1]} ${partes[2]}` };
+      }
+      // Si tiene 4+ partes: tomar primeros 2 como nombres, resto como apellidos
+      const nombres = partes.slice(0, 2).join(' ');
+      const apellidos = partes.slice(2).join(' ');
+      return { nombres, apellidos };
+    }
+    
+    return { nombres: nombreCompleto, apellidos: '' };
+  };
+
   const generarTextoWebinar = () => {
     const nombreWebinar = obtenerNombreWebinar();
     const fechaCompleta = formatearFechaCompleta(fecha);
@@ -120,25 +151,49 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 🔥 DIBUJAR EL NOMBRE
-      const nombreFontSize = 36;
-      const nombreWidth = fontBold.widthOfTextAtSize(nombre, nombreFontSize);
-      const nombreX = (width - nombreWidth) / 2;
-      const nombreY = height - 240;
+      // 🔥 DIVIDIR EL NOMBRE EN NOMBRES Y APELLIDOS
+      const { nombres, apellidos } = dividirNombre(nombre);
+      console.log('📝 Nombres:', nombres);
+      console.log('📝 Apellidos:', apellidos);
       
-      firstPage.drawText(nombre, {
-        x: nombreX,
-        y: nombreY,
-        size: nombreFontSize,
-        font: fontBold,
-        color: rgb(0.35, 0.13, 0.56),
-      });
+      // 🔥 DIBUJAR LOS NOMBRES (PRIMERA LÍNEA)
+      const nombreFontSize = 34;
+      const nombreY = height - 230; // Posición para la primera línea
+      
+      if (nombres) {
+        const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
+        const nombreX = (width - nombreWidth) / 2;
+        
+        firstPage.drawText(nombres, {
+          x: nombreX,
+          y: nombreY,
+          size: nombreFontSize,
+          font: fontBold,
+          color: rgb(0.35, 0.13, 0.56),
+        });
+      }
+      
+      // 🔥 DIBUJAR LOS APELLIDOS (SEGUNDA LÍNEA)
+      if (apellidos) {
+        const apellidosFontSize = 34;
+        const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
+        const apellidosX = (width - apellidosWidth) / 2;
+        const apellidosY = nombreY - 50; // 50 puntos debajo de los nombres
+        
+        firstPage.drawText(apellidos, {
+          x: apellidosX,
+          y: apellidosY,
+          size: apellidosFontSize,
+          font: fontBold,
+          color: rgb(0.35, 0.13, 0.56),
+        });
+      }
       
       // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 140;
-      const textY = height - 290;
+      const textY = height - 340; // Ajustado porque el nombre ahora ocupa 2 líneas
       const maxWidth = width - 280;
       
       const palabras = textoWebinar.split(' ');
@@ -172,12 +227,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - SUBIDA
+      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año)
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
       const fechaX = width - fechaWidth - 140;
-      const fechaY = 225; // 🔥 SUBIDO (antes 210)
+      const fechaY = 225;
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
