@@ -16,13 +16,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
   const [cargandoVistaPrevia, setCargandoVistaPrevia] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // 🔥 OBTENER EL NOMBRE DEL WEBINAR (desde localStorage)
+  // 🔥 OBTENER EL NOMBRE DEL WEBINAR
   const obtenerNombreWebinar = () => {
     try {
       const webinarData = localStorage.getItem('webinar_data');
       if (webinarData) {
         const data = JSON.parse(webinarData);
-        // Primero intenta usar nombreWebinar, si no existe usa periodo
         return data.nombreWebinar || data.periodo || 'Webinar de Capacitación';
       }
       return 'Webinar de Capacitación';
@@ -31,7 +30,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 FORMATEAR FECHA: "Chiclayo, mes del año" (para la fecha abajo)
+  // 🔥 FORMATEAR FECHA: "Chiclayo, mes del año"
   const formatearFecha = (fechaStr: string) => {
     if (!fechaStr) return 'Chiclayo, 2026';
     
@@ -50,7 +49,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 FORMATEAR FECHA COMPLETA: "25 de junio de 2026" (para el texto)
+  // 🔥 FORMATEAR FECHA COMPLETA: "25 de junio de 2026"
   const formatearFechaCompleta = (fechaStr: string) => {
     if (!fechaStr) return '2026';
     
@@ -70,7 +69,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 GENERAR TEXTO DEL WEBINAR CON EL NOMBRE DEL WEBINAR
+  // 🔥 GENERAR TEXTO DEL WEBINAR
   const generarTextoWebinar = () => {
     const nombreWebinar = obtenerNombreWebinar();
     const fechaCompleta = formatearFechaCompleta(fecha);
@@ -139,7 +138,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (CON EL NOMBRE)
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 80;
@@ -177,18 +176,19 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - ABAJO A LA DERECHA
+      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año) - CORREGIDO
+      // Ahora con el mismo tamaño de letra que el texto y más arriba
       const fechaTexto = formatearFecha(fecha);
-      const fechaFontSize = 16;
-      const fechaWidth = fontBold.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 80;
-      const fechaY = 150;
+      const fechaFontSize = textFontSize; // 🔥 MISMO TAMAÑO QUE EL TEXTO (12)
+      const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
+      const fechaX = width - fechaWidth - 80; // 🔥 A LA DERECHA
+      const fechaY = 200; // 🔥 SUBIDO (antes 150)
       
       firstPage.drawText(fechaTexto, {
         x: fechaX,
         y: fechaY,
         size: fechaFontSize,
-        font: fontBold,
+        font: fontNormal, // 🔥 USAR fontNormal (no bold)
         color: rgb(0.2, 0.2, 0.2),
       });
       
