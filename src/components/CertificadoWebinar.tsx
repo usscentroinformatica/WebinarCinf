@@ -149,9 +149,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       console.log('📝 Nombres:', nombres);
       console.log('📝 Apellidos:', apellidos);
       
-      // 🔥 DIBUJAR LOS NOMBRES (PRIMERA LÍNEA) - MÁS PEQUEÑO Y MÁS ARRIBA
-      const nombreFontSize = 30; // 🔥 MÁS PEQUEÑO (antes 34)
-      const nombreY = height - 200; // 🔥 MÁS ARRIBA (antes 230)
+      // ============================================================
+      // 🔥 SECCIÓN 1: DIBUJAR EL NOMBRE (INDEPENDIENTE)
+      // ============================================================
+      const nombreFontSize = 30;
+      const nombreY = height - 210; // 🔥 BAJADO UN POQUITO (antes 200)
       
       if (nombres) {
         const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
@@ -166,12 +168,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
-      // 🔥 DIBUJAR LOS APELLIDOS (SEGUNDA LÍNEA)
       if (apellidos) {
-        const apellidosFontSize = 30; // 🔥 MÁS PEQUEÑO (antes 34)
+        const apellidosFontSize = 30;
         const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
         const apellidosX = (width - apellidosWidth) / 2;
-        const apellidosY = nombreY - 45; // 45 puntos debajo de los nombres
+        const apellidosY = nombreY - 45;
         
         firstPage.drawText(apellidos, {
           x: apellidosX,
@@ -182,11 +183,13 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (EN LA POSICIÓN ORIGINAL)
+      // ============================================================
+      // 🔥 SECCIÓN 2: DIBUJAR EL TEXTO DEL WEBINAR (INDEPENDIENTE)
+      // ============================================================
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 140;
-      const textY = height - 290; // 🔥 POSICIÓN ORIGINAL (antes 340)
+      const textY = height - 290; // 🔥 FIJO, NO DEPENDE DEL NOMBRE
       const maxWidth = width - 280;
       
       const palabras = textoWebinar.split(' ');
@@ -220,7 +223,9 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // 🔥 DIBUJAR LA FECHA (Chiclayo, mes del año)
+      // ============================================================
+      // 🔥 SECCIÓN 3: DIBUJAR LA FECHA (INDEPENDIENTE)
+      // ============================================================
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
