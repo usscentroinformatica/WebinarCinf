@@ -27,6 +27,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [mensaje, setMensaje] = useState('');
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
+  const [hojaEliminada, setHojaEliminada] = useState(false); // 🔥 NUEVO
 
   const extraerFechaPeriodo = (periodoStr: string) => {
     const partes = periodoStr.split(' ');
@@ -39,9 +40,130 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const { mes, año } = extraerFechaPeriodo(periodo);
   const tituloPeriodo = mes && año ? `${mes} ${año}` : periodo;
 
+  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY (CON DETECCIÓN DE ERRORES)
+  const cargarDatosDesdeProxy = async (spreadsheetId: string, scriptUrl: string) => {
+    try {
+      console.log('📡 Llamando al App Script a través del proxy...');
+      console.log('🔑 scriptUrl:', scriptUrl);
+      console.log('🔑 spreadsheetId:', spreadsheetId);
+      
+      const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
+      console.log('📡 URL del proxy:', url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Error HTTP: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('📥 Respuesta del proxy:', result);
+      
+      // 🔥 VERIFICAR SI HAY ERROR - DETECCIÓN MEJORADA
+      if (result.error) {
+        const errorMsg = result.error.toLowerCase();
+        console.log('🔍 Mensaje de error:', errorMsg);
+        
+        // 🔥 DETECTAR ERROR DE HOJA ELIMINADA
+        const erroresHojaEliminada = [
+          'missing', 'deleted', 'document', 'exception', 
+          'not found', 'no existe', 'spreadsheet', 'access',
+          'no se pudo encontrar', '404'
+        ];
+        
+        const esHojaEliminada = erroresHojaEliminada.some(palabra => errorMsg.includes(palabra));
+        
+        if (esHojaEliminada) {
+          console.warn('⚠️ La hoja de cálculo fue eliminada o no existe');
+          setRegistros([]);
+          setHojaEliminada(true);
+          setError(''); // 🔥 NO mostrar el error técnico
+          setMensaje('📭 La hoja de cálculo fue eliminada. No hay certificados disponibles.');
+          return;
+        }
+        
+        // Si es otro tipo de error, mostrarlo
+        setError(`❌ ${result.error}`);
+        return;
+      }
+      
+      // Si no hay datos o la respuesta está vacía
+      if (!result.success || !result.data || result.data.length === 0) {
+        console.warn('⚠️ No hay datos en la hoja');
+        setRegistros([]);
+        setHojaEliminada(false);
+        setError('');
+        setMensaje('📭 No hay solicitudes de certificado en la hoja actual');
+        return;
+      }
+      
+      // Si hay datos, procesarlos
+      const data = result.data;
+      console.log(`📄 ${data.length} registros encontrados`);
+      
+      const certificados = data
+        .filter((row: any) => {
+          const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
+          console.log(`🔍 ${row['Correo electrónico'] || 'sin email'} - Solicita: "${solicita}"`);
+          return solicita === 'si';
+        })
+        .map((row: any, index: number) => ({
+          fila: index + 2,
+          email: row['Correo electrónico'] || '',
+          nombre: row['Nombre completo'] || '',
+          nombreCertificado: row['Nombre para certificado'] || row['Nombre completo'] || '',
+          curso: row['Curso'] || '',
+          pead: row['PEAD'] || '',
+          solicitaCertificado: row['Solicita certificado'] || 'no',
+          pagado: row['Pagado'] || 'NO',
+          fecha: row['Marca temporal'] || new Date().toISOString()
+        }));
+      
+      console.log(`✅ ${certificados.length} certificados encontrados`);
+      setRegistros(certificados);
+      setHojaEliminada(false);
+      setError('');
+      
+      if (certificados.length === 0) {
+        setMensaje('📭 No hay solicitudes de certificado para este período');
+      } else {
+        setMensaje(`✅ ${certificados.length} certificados encontrados`);
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error cargando datos desde proxy:', error);
+      
+      const errorMsg = error.message.toLowerCase();
+      
+      const erroresHojaEliminada = [
+        'missing', 'deleted', 'document', 'exception', 
+        'not found', 'no existe', 'spreadsheet', 'access',
+        'no se pudo encontrar', '404'
+      ];
+      
+      const esHojaEliminada = erroresHojaEliminada.some(palabra => errorMsg.includes(palabra));
+      
+      if (esHojaEliminada) {
+        console.warn('⚠️ La hoja de cálculo fue eliminada o no existe (catch)');
+        setRegistros([]);
+        setHojaEliminada(true);
+        setError(''); // 🔥 NO mostrar el error técnico
+        setMensaje('📭 La hoja de cálculo fue eliminada. No hay certificados disponibles.');
+      } else {
+        setError(`❌ ${error.message}`);
+        setHojaEliminada(false);
+      }
+    }
+  };
+
   useEffect(() => {
     const cargarDatos = async () => {
       try {
+        setLoading(true);
+        setHojaEliminada(false);
+        setError('');
+        setMensaje('');
+        
         console.log('🔍 Cargando configuración...');
         const configRef = ref(db, 'webinar-config/config');
         const configSnap = await get(configRef);
@@ -56,7 +178,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           });
           
           if (configData.spreadsheetId && configData.googleScriptUrl) {
-            // 🔥 USAR EL PROXY (CON TODOS LOS PARÁMETROS)
             await cargarDatosDesdeProxy(configData.spreadsheetId, configData.googleScriptUrl);
           } else {
             setError('Falta configuración (spreadsheetId o scriptUrl)');
@@ -74,65 +195,10 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     cargarDatos();
   }, []);
 
-  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY
-  const cargarDatosDesdeProxy = async (spreadsheetId: string, scriptUrl: string) => {
-    try {
-      console.log('📡 Llamando al App Script a través del proxy...');
-      console.log('🔑 scriptUrl:', scriptUrl);
-      console.log('🔑 spreadsheetId:', spreadsheetId);
-      
-      // 🔥 USAR EL PROXY CON TODOS LOS PARÁMETROS
-      const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
-      console.log('📡 URL del proxy:', url);
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('📥 Respuesta del proxy:', result);
-      
-      if (result.success && result.data) {
-        const data = result.data;
-        console.log(`📄 ${data.length} registros encontrados`);
-        
-        // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
-        const certificados = data
-          .filter((row: any) => {
-            const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
-            console.log(`🔍 ${row['Correo electrónico'] || 'sin email'} - Solicita: "${solicita}"`);
-            return solicita === 'si';
-          })
-          .map((row: any, index: number) => ({
-            fila: index + 2,
-            email: row['Correo electrónico'] || '',
-            nombre: row['Nombre completo'] || '',
-            nombreCertificado: row['Nombre para certificado'] || row['Nombre completo'] || '',
-            curso: row['Curso'] || '',
-            pead: row['PEAD'] || '',
-            solicitaCertificado: row['Solicita certificado'] || 'no',
-            pagado: row['Pagado'] || 'NO',
-            fecha: row['Marca temporal'] || new Date().toISOString()
-          }));
-        
-        console.log(`✅ ${certificados.length} certificados encontrados`);
-        setRegistros(certificados);
-      } else {
-        console.error('❌ Error en la respuesta:', result);
-        setError(result.error || 'Error al obtener los datos');
-      }
-      
-    } catch (error: any) {
-      console.error('❌ Error cargando datos desde proxy:', error);
-      setError(`Error: ${error.message}`);
-    }
-  };
-
   const togglePagado = async (fila: number, valorActual: string) => {
     const nuevoValor = valorActual === 'SI' ? 'NO' : 'SI';
     setMensaje('');
+    setError('');
     try {
       const response = await fetch('/api/google-script', {
         method: 'POST',
@@ -213,7 +279,18 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       {mensaje && <div style={{ padding: '12px 16px', backgroundColor: '#e8f5e1', color: '#1a5e20', borderRadius: '8px', marginBottom: '16px' }}>{mensaje}</div>}
       {error && <div style={{ padding: '12px 16px', backgroundColor: '#fce8e6', color: '#c5221f', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
 
-      {registros.length === 0 ? (
+      {/* 🔥 NUEVO: MENSAJE CUANDO LA HOJA FUE ELIMINADA */}
+      {hojaEliminada ? (
+        <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#f8f9fa', borderRadius: '12px', color: '#666' }}>
+          <p style={{ fontSize: '48px', margin: 0 }}>🗑️</p>
+          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#c5221f', marginTop: '10px' }}>
+            La hoja de cálculo fue eliminada
+          </p>
+          <p style={{ fontSize: '14px', color: '#666' }}>
+            No hay certificados disponibles. Por favor, crea una nueva hoja desde el panel de configuración.
+          </p>
+        </div>
+      ) : registros.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#f8f9fa', borderRadius: '12px', color: '#666' }}>
           <p style={{ fontSize: '18px' }}>📭 No hay solicitudes de certificado para este período</p>
           <p style={{ fontSize: '14px' }}>Los estudiantes que soliciten certificado aparecerán aquí</p>
