@@ -24,6 +24,10 @@ const AdminPanel = () => {
   const [editandoUrl, setEditandoUrl] = useState(false);
   const [editandoPeriodo, setEditandoPeriodo] = useState(false);
 
+  // 🔥 NUEVO: Estado para el nombre del webinar
+  const [nombreWebinar, setNombreWebinar] = useState('');
+  const [editandoNombreWebinar, setEditandoNombreWebinar] = useState(false);
+
   // Estado para la pestaña activa
   const [tabActiva, setTabActiva] = useState<'config' | 'certificados'>('config');
 
@@ -42,15 +46,12 @@ const AdminPanel = () => {
         timestamp 
       });
       
-      // Verificar si existe la sesión
       if (!isAdmin || isAdmin !== 'true' || !adminEmail) {
         console.warn('⚠️ Sesión no válida - Datos incompletos');
         limpiarSesion();
         return false;
       }
       
-      // Verificar tiempo de sesión (opcional)
-      // Si pasaron más de 8 horas, la sesión expira
       if (timestamp) {
         const sessionTime = parseInt(timestamp);
         const currentTime = Date.now();
@@ -75,7 +76,6 @@ const AdminPanel = () => {
     }
   };
 
-  // 🔥 FUNCIÓN PARA LIMPIAR LA SESIÓN
   const limpiarSesion = () => {
     localStorage.removeItem('isAdmin');
     localStorage.removeItem('adminEmail');
@@ -86,18 +86,15 @@ const AdminPanel = () => {
     setVerificandoSesion(false);
   };
 
-  // 🔥 FUNCIÓN PARA CERRAR SESIÓN
   const cerrarSesion = () => {
     limpiarSesion();
     window.location.href = '/login-admin';
   };
 
-  // 🔥 EFECTO 1: Verificar sesión al cargar el componente
   useEffect(() => {
     verificarSesion();
   }, []);
 
-  // 🔥 EFECTO 2: Verificar cuando la página recibe foco
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
@@ -112,25 +109,21 @@ const AdminPanel = () => {
     };
   }, []);
 
-  // 🔥 EFECTO 3: Verificar cada 60 segundos (sesión activa)
   useEffect(() => {
     const interval = setInterval(() => {
       verificarSesion();
-    }, 60000); // 60 segundos
+    }, 60000);
     
     return () => clearInterval(interval);
   }, []);
 
-  // 🔥 EFECTO 4: Cargar configuración SOLO si la sesión es válida
   useEffect(() => {
     if (sesionValida) {
       cargarConfiguracion();
     }
   }, [sesionValida]);
 
-  // 🔥 INTERCEPTAR NAVEGACIÓN (cuando el usuario usa el botón "atrás")
   useEffect(() => {
-    // Esto previene que el usuario vuelva al panel si cerró sesión
     window.addEventListener('popstate', () => {
       verificarSesion();
     });
@@ -143,7 +136,7 @@ const AdminPanel = () => {
   }, []);
 
   // ============================================================
-  // FUNCIONES EXISTENTES
+  // FUNCIONES
   // ============================================================
 
   const cargarConfiguracion = async () => {
@@ -156,11 +149,13 @@ const AdminPanel = () => {
         setConfigActual(data);
         setGoogleScriptUrl(data.googleScriptUrl || '');
         setPeriodo(data.periodo || '');
+        setNombreWebinar(data.nombreWebinar || ''); // 🔥 NUEVO
         setSpreadsheetId(data.spreadsheetId || '');
         
         // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
         localStorage.setItem('webinar_data', JSON.stringify({
-          periodo: data.periodo || 'WEBINAR DE CAPACITACIÓN'
+          periodo: data.periodo || 'WEBINAR DE CAPACITACIÓN',
+          nombreWebinar: data.nombreWebinar || 'Webinar de Capacitación' // 🔥 NUEVO
         }));
         
         if (data.spreadsheetUrl) {
@@ -190,18 +185,21 @@ const AdminPanel = () => {
       await set(configRef, {
         googleScriptUrl: googleScriptUrl.trim(),
         periodo: periodo || 'NUEVO PERIODO',
+        nombreWebinar: nombreWebinar || 'Webinar de Capacitación', // 🔥 NUEVO
         fechaActualizacion: new Date().toISOString()
       });
 
       // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
       localStorage.setItem('webinar_data', JSON.stringify({
-        periodo: periodo || 'WEBINAR DE CAPACITACIÓN'
+        periodo: periodo || 'WEBINAR DE CAPACITACIÓN',
+        nombreWebinar: nombreWebinar || 'Webinar de Capacitación' // 🔥 NUEVO
       }));
 
       setMensaje('✅ Configuración guardada. Ahora puedes crear la hoja.');
       setPasoActual(2);
       setEditandoUrl(false);
       setEditandoPeriodo(false);
+      setEditandoNombreWebinar(false); // 🔥 NUEVO
       
       setTimeout(() => {
         cargarConfiguracion();
@@ -254,12 +252,14 @@ const AdminPanel = () => {
           spreadsheetUrl: spreadsheetUrl,
           spreadsheetId: newSpreadsheetId,
           periodo: periodo,
+          nombreWebinar: nombreWebinar || 'Webinar de Capacitación', // 🔥 NUEVO
           fechaActualizacion: new Date().toISOString()
         });
 
         // 🔥 GUARDAR EN LOCALSTORAGE PARA CertificadoWebinar
         localStorage.setItem('webinar_data', JSON.stringify({
-          periodo: periodo
+          periodo: periodo,
+          nombreWebinar: nombreWebinar || 'Webinar de Capacitación' // 🔥 NUEVO
         }));
 
         setSpreadsheetId(newSpreadsheetId);
@@ -532,7 +532,6 @@ const AdminPanel = () => {
     );
   }
 
-  // Si la sesión no es válida, no renderizar nada (ya redirigió)
   if (!sesionValida) {
     return null;
   }
@@ -549,7 +548,6 @@ const AdminPanel = () => {
     }}>
       <div style={{ maxWidth: '900px', margin: '0 auto' }}>
         
-        {/* HEADER CON BOTÓN DE CERRAR SESIÓN */}
         <div style={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
@@ -597,7 +595,6 @@ const AdminPanel = () => {
           </button>
         </div>
 
-        {/* PESTAÑAS DE NAVEGACIÓN */}
         <div style={{ 
           display: 'flex', 
           gap: '10px', 
@@ -644,12 +641,8 @@ const AdminPanel = () => {
           </button>
         </div>
 
-        {/* ============================================================
-            CONTENIDO - PESTAÑA CONFIGURACIÓN
-            ============================================================ */}
         {tabActiva === 'config' && (
           <>
-            {/* INDICADORES DE PASOS */}
             <div style={{ 
               background: 'white', 
               borderRadius: '16px', 
@@ -705,7 +698,6 @@ const AdminPanel = () => {
               </div>
             </div>
 
-            {/* BOTONES DE NAVEGACIÓN ENTRE PASOS */}
             <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', justifyContent: 'center' }}>
               {pasoActual > 1 && (
                 <button
@@ -754,10 +746,8 @@ const AdminPanel = () => {
               )}
             </div>
 
-            {/* CONTENIDO DE CADA PASO */}
             <div style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
               
-              {/* PASO 1: Configurar URL */}
               {pasoActual === 1 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>📝 Configurar URL del Apps Script</h2>
@@ -804,7 +794,7 @@ const AdminPanel = () => {
                   </div>
 
                   <div style={{ marginBottom: '25px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>Período</label>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>📅 Período</label>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                       <input
                         type="text"
@@ -840,28 +830,74 @@ const AdminPanel = () => {
                         {editandoPeriodo ? '💾 Listo' : '✏️ Editar'}
                       </button>
                     </div>
+                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>📌 Ej: JUNIO 2026 (fecha del webinar)</small>
+                  </div>
+
+                  {/* 🔥 NUEVO CAMPO: Nombre del Webinar */}
+                  <div style={{ marginBottom: '25px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500', color: '#333' }}>
+                      🎯 Nombre del Webinar
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <input
+                        type="text"
+                        value={nombreWebinar}
+                        onChange={(e) => setNombreWebinar(e.target.value)}
+                        placeholder="Ej: Transforma PowerPoint en una herramienta de presentaciones impactantes"
+                        disabled={!editandoNombreWebinar}
+                        style={{
+                          flex: 1,
+                          padding: '12px 16px',
+                          border: `2px solid ${editandoNombreWebinar ? '#63ed12' : '#e0e0e0'}`,
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          background: editandoNombreWebinar ? 'white' : '#f5f5f5',
+                          color: editandoNombreWebinar ? '#333' : '#999',
+                          cursor: editandoNombreWebinar ? 'text' : 'not-allowed',
+                          transition: 'all 0.3s ease'
+                        }}
+                      />
+                      <button
+                        onClick={() => setEditandoNombreWebinar(!editandoNombreWebinar)}
+                        style={{
+                          padding: '10px 20px',
+                          background: editandoNombreWebinar ? '#63ed12' : '#5a2290',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontWeight: '500',
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        {editandoNombreWebinar ? '💾 Listo' : '✏️ Editar'}
+                      </button>
+                    </div>
+                    <small style={{ color: '#666', display: 'block', marginTop: '5px' }}>
+                      📌 El nombre que aparecerá en el certificado (ej: "Transforma PowerPoint en una herramienta de presentaciones impactantes")
+                    </small>
                   </div>
 
                   <button
                     onClick={guardarConfiguracion}
-                    disabled={loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo}
+                    disabled={loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo || editandoNombreWebinar}
                     style={{
                       width: '100%',
                       padding: '14px',
-                      background: (loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo) ? '#ccc' : '#5a2290',
+                      background: (loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo || editandoNombreWebinar) ? '#ccc' : '#5a2290',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
                       fontSize: '16px',
                       fontWeight: 'bold',
-                      cursor: (loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo) ? 'not-allowed' : 'pointer',
+                      cursor: (loading || !googleScriptUrl.trim() || editandoUrl || editandoPeriodo || editandoNombreWebinar) ? 'not-allowed' : 'pointer',
                       transition: 'all 0.3s ease'
                     }}
                   >
                     {loading ? '💾 Guardando...' : '💾 Guardar configuración'}
                   </button>
                   
-                  {(editandoUrl || editandoPeriodo) && (
+                  {(editandoUrl || editandoPeriodo || editandoNombreWebinar) && (
                     <p style={{ marginTop: '15px', fontSize: '12px', color: '#ff6d00', textAlign: 'center' }}>
                       ⚠️ Termina de editar antes de guardar
                     </p>
@@ -869,7 +905,6 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* PASO 2: Crear hoja */}
               {pasoActual === 2 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>🚀 Crear hoja de cálculo</h2>
@@ -887,7 +922,8 @@ const AdminPanel = () => {
                     }}>
                       <strong>📋 Configuración actual:</strong><br />
                       URL del Script: <code style={{ fontSize: '11px' }}>{configActual.googleScriptUrl?.substring(0, 60)}...</code><br />
-                      Período: <strong>{configActual.periodo}</strong>
+                      Período: <strong>{configActual.periodo}</strong><br />
+                      Nombre Webinar: <strong>{configActual.nombreWebinar || 'No definido'}</strong>
                     </div>
                   )}
 
@@ -912,7 +948,6 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* PASO 3: Cargar estudiantes */}
               {pasoActual === 3 && (
                 <div>
                   <h2 style={{ color: '#5a2290', marginBottom: '10px' }}>👥 Cargar estudiantes</h2>
@@ -933,6 +968,7 @@ const AdminPanel = () => {
                         📊 Ver hoja de cálculo
                       </a><br />
                       <strong>Período:</strong> {configActual.periodo}<br />
+                      <strong>Webinar:</strong> {configActual.nombreWebinar || 'No definido'}<br />
                       <strong>ID:</strong> <code style={{ fontSize: '11px' }}>{spreadsheetId || configActual?.spreadsheetId}</code>
                     </div>
                   )}
@@ -1030,7 +1066,6 @@ const AdminPanel = () => {
                 </div>
               )}
 
-              {/* MENSAJE DE ESTADO */}
               {mensaje && (
                 <div style={{
                   marginTop: '20px',
@@ -1048,9 +1083,6 @@ const AdminPanel = () => {
           </>
         )}
 
-        {/* ============================================================
-            CONTENIDO - PESTAÑA CERTIFICADOS
-            ============================================================ */}
         {tabActiva === 'certificados' && (
           <div style={{ background: 'white', borderRadius: '16px', padding: '30px', boxShadow: '0 10px 40px rgba(0,0,0,0.1)' }}>
             <CertificadosAdmin periodo={configActual?.periodo || 'WEBINAR NO CONFIGURADO'} />
