@@ -2,6 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
+// ✅ NO importes firebase/config aquí
 
 interface CertificadoWebinarProps {
   nombre: string;
@@ -66,7 +67,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 FUNCIÓN PARA DIVIDIR EL NOMBRE EN NOMBRES Y APELLIDOS
   const dividirNombre = (nombreCompleto: string) => {
     const partes = nombreCompleto.trim().split(' ');
     
@@ -144,16 +144,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // 🔥 DIVIDIR EL NOMBRE EN NOMBRES Y APELLIDOS
+      // Dibujar el nombre
       const { nombres, apellidos } = dividirNombre(nombre);
-      console.log('📝 Nombres:', nombres);
-      console.log('📝 Apellidos:', apellidos);
       
-      // ============================================================
-      // 🔥 SECCIÓN 1: DIBUJAR EL NOMBRE (INDEPENDIENTE)
-      // ============================================================
       const nombreFontSize = 30;
-      const nombreY = height - 210; // 🔥 BAJADO UN POQUITO (antes 200)
+      const nombreY = height - 210;
       
       if (nombres) {
         const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
@@ -183,13 +178,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
-      // ============================================================
-      // 🔥 SECCIÓN 2: DIBUJAR EL TEXTO DEL WEBINAR (INDEPENDIENTE)
-      // ============================================================
+      // Dibujar el texto del webinar
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 140;
-      const textY = height - 290; // 🔥 FIJO, NO DEPENDE DEL NOMBRE
+      const textY = height - 290;
       const maxWidth = width - 280;
       
       const palabras = textoWebinar.split(' ');
@@ -223,9 +216,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // ============================================================
-      // 🔥 SECCIÓN 3: DIBUJAR LA FECHA (INDEPENDIENTE)
-      // ============================================================
+      // Dibujar la fecha
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
