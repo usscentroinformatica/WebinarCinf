@@ -10,6 +10,7 @@ interface RegistroCertificado {
   nombre: string;
   nombreCertificado: string;
   curso: string;
+  cursos?: string[]; // 🔥 NUEVO: Array de cursos
   pead: string;
   solicitaCertificado: string;
   pagado: string;
@@ -27,7 +28,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [mensaje, setMensaje] = useState('');
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
-  const [hojaEliminada, setHojaEliminada] = useState(false); // 🔥 NUEVO
+  const [hojaEliminada, setHojaEliminada] = useState(false);
 
   const extraerFechaPeriodo = (periodoStr: string) => {
     const partes = periodoStr.split(' ');
@@ -40,12 +41,45 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const { mes, año } = extraerFechaPeriodo(periodo);
   const tituloPeriodo = mes && año ? `${mes} ${año}` : periodo;
 
-  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY (CON DETECCIÓN DE ERRORES)
+  // 🔥 FUNCIÓN PARA AGRUPAR POR EMAIL
+  const agruparPorEmail = (registros: any[]) => {
+    const mapa = new Map();
+    
+    for (const registro of registros) {
+      const email = registro.email;
+      
+      if (!mapa.has(email)) {
+        // Primera vez que vemos este email
+        mapa.set(email, {
+          ...registro,
+          cursos: [registro.curso],
+          pagado: registro.pagado,
+          fecha: registro.fecha
+        });
+      } else {
+        // Ya existe, agregamos el curso a la lista
+        const existente = mapa.get(email);
+        if (!existente.cursos.includes(registro.curso)) {
+          existente.cursos.push(registro.curso);
+        }
+        // Si algún registro está pagado, marcamos como pagado
+        if (registro.pagado === 'SI') {
+          existente.pagado = 'SI';
+        }
+        // Actualizar la fecha con la más reciente
+        if (registro.fecha > existente.fecha) {
+          existente.fecha = registro.fecha;
+        }
+      }
+    }
+    
+    return Array.from(mapa.values());
+  };
+
+  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY
   const cargarDatosDesdeProxy = async (spreadsheetId: string, scriptUrl: string) => {
     try {
       console.log('📡 Llamando al App Script a través del proxy...');
-      console.log('🔑 scriptUrl:', scriptUrl);
-      console.log('🔑 spreadsheetId:', spreadsheetId);
       
       const url = `/api/google-script?scriptUrl=${encodeURIComponent(scriptUrl)}&action=getRespuestas&spreadsheetId=${encodeURIComponent(spreadsheetId)}`;
       console.log('📡 URL del proxy:', url);
@@ -59,12 +93,11 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       const result = await response.json();
       console.log('📥 Respuesta del proxy:', result);
       
-      // 🔥 VERIFICAR SI HAY ERROR - DETECCIÓN MEJORADA
+      // 🔥 VERIFICAR SI HAY ERROR
       if (result.error) {
         const errorMsg = result.error.toLowerCase();
         console.log('🔍 Mensaje de error:', errorMsg);
         
-        // 🔥 DETECTAR ERROR DE HOJA ELIMINADA
         const erroresHojaEliminada = [
           'missing', 'deleted', 'document', 'exception', 
           'not found', 'no existe', 'spreadsheet', 'access',
@@ -77,17 +110,15 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           console.warn('⚠️ La hoja de cálculo fue eliminada o no existe');
           setRegistros([]);
           setHojaEliminada(true);
-          setError(''); // 🔥 NO mostrar el error técnico
+          setError('');
           setMensaje('📭 La hoja de cálculo fue eliminada. No hay certificados disponibles.');
           return;
         }
         
-        // Si es otro tipo de error, mostrarlo
         setError(`❌ ${result.error}`);
         return;
       }
       
-      // Si no hay datos o la respuesta está vacía
       if (!result.success || !result.data || result.data.length === 0) {
         console.warn('⚠️ No hay datos en la hoja');
         setRegistros([]);
@@ -97,14 +128,13 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
         return;
       }
       
-      // Si hay datos, procesarlos
       const data = result.data;
       console.log(`📄 ${data.length} registros encontrados`);
       
+      // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
       const certificados = data
         .filter((row: any) => {
           const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
-          console.log(`🔍 ${row['Correo electrónico'] || 'sin email'} - Solicita: "${solicita}"`);
           return solicita === 'si';
         })
         .map((row: any, index: number) => ({
@@ -119,15 +149,20 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           fecha: row['Marca temporal'] || new Date().toISOString()
         }));
       
-      console.log(`✅ ${certificados.length} certificados encontrados`);
-      setRegistros(certificados);
+      console.log(`📊 ${certificados.length} registros antes de agrupar`);
+      
+      // 🔥 AGRUPAR POR EMAIL
+      const certificadosAgrupados = agruparPorEmail(certificados);
+      
+      console.log(`✅ ${certificadosAgrupados.length} estudiantes únicos después de agrupar`);
+      setRegistros(certificadosAgrupados);
       setHojaEliminada(false);
       setError('');
       
-      if (certificados.length === 0) {
+      if (certificadosAgrupados.length === 0) {
         setMensaje('📭 No hay solicitudes de certificado para este período');
       } else {
-        setMensaje(`✅ ${certificados.length} certificados encontrados`);
+        setMensaje(`✅ ${certificadosAgrupados.length} estudiantes solicitaron certificado`);
       }
       
     } catch (error: any) {
@@ -144,10 +179,9 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       const esHojaEliminada = erroresHojaEliminada.some(palabra => errorMsg.includes(palabra));
       
       if (esHojaEliminada) {
-        console.warn('⚠️ La hoja de cálculo fue eliminada o no existe (catch)');
         setRegistros([]);
         setHojaEliminada(true);
-        setError(''); // 🔥 NO mostrar el error técnico
+        setError('');
         setMensaje('📭 La hoja de cálculo fue eliminada. No hay certificados disponibles.');
       } else {
         setError(`❌ ${error.message}`);
@@ -239,7 +273,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
 
   return (
     <div style={{ padding: '20px' }}>
-      {/* ENCABEZADO CON PERÍODO */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -279,7 +312,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       {mensaje && <div style={{ padding: '12px 16px', backgroundColor: '#e8f5e1', color: '#1a5e20', borderRadius: '8px', marginBottom: '16px' }}>{mensaje}</div>}
       {error && <div style={{ padding: '12px 16px', backgroundColor: '#fce8e6', color: '#c5221f', borderRadius: '8px', marginBottom: '16px' }}>{error}</div>}
 
-      {/* 🔥 NUEVO: MENSAJE CUANDO LA HOJA FUE ELIMINADA */}
       {hojaEliminada ? (
         <div style={{ textAlign: 'center', padding: '60px 20px', backgroundColor: '#f8f9fa', borderRadius: '12px', color: '#666' }}>
           <p style={{ fontSize: '48px', margin: 0 }}>🗑️</p>
@@ -303,18 +335,36 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
                 <th style={{ padding: '12px', textAlign: 'left' }}>#</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Participante</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Nombre para Certificado</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Curso</th>
+                <th style={{ padding: '12px', textAlign: 'left' }}>Cursos</th> {/* 🔥 CAMBIADO */}
                 <th style={{ padding: '12px', textAlign: 'center' }}>✅ Pagado</th>
                 <th style={{ padding: '12px', textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {registros.map((registro, idx) => (
-                <tr key={registro.fila} style={{ borderBottom: '1px solid #e0e0e0', backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
+                <tr key={idx} style={{ borderBottom: '1px solid #e0e0e0', backgroundColor: idx % 2 === 0 ? '#fafafa' : 'white' }}>
                   <td style={{ padding: '10px' }}>{idx + 1}</td>
                   <td style={{ padding: '10px' }}>{registro.nombre}</td>
                   <td style={{ padding: '10px' }}>{registro.nombreCertificado}</td>
-                  <td style={{ padding: '10px' }}>{registro.curso}</td>
+                  <td style={{ padding: '10px' }}>
+                    {registro.cursos ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {registro.cursos.map((c: string, i: number) => (
+                          <span key={i} style={{ 
+                            backgroundColor: '#e8f0fe', 
+                            padding: '2px 8px', 
+                            borderRadius: '4px', 
+                            fontSize: '11px',
+                            color: '#1a237e'
+                          }}>
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      registro.curso
+                    )}
+                  </td>
                   <td style={{ padding: '10px', textAlign: 'center' }}>
                     <button
                       onClick={() => togglePagado(registro.fila, registro.pagado)}
