@@ -16,12 +16,14 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
   const [cargandoVistaPrevia, setCargandoVistaPrevia] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const obtenerPeriodo = () => {
+  // 🔥 OBTENER EL NOMBRE DEL WEBINAR (desde localStorage)
+  const obtenerNombreWebinar = () => {
     try {
       const webinarData = localStorage.getItem('webinar_data');
       if (webinarData) {
         const data = JSON.parse(webinarData);
-        return data.periodo || 'Webinar de Capacitación';
+        // Primero intenta usar nombreWebinar, si no existe usa periodo
+        return data.nombreWebinar || data.periodo || 'Webinar de Capacitación';
       }
       return 'Webinar de Capacitación';
     } catch {
@@ -68,12 +70,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     }
   };
 
-  // 🔥 GENERAR TEXTO DEL WEBINAR CON FECHA COMPLETA
+  // 🔥 GENERAR TEXTO DEL WEBINAR CON EL NOMBRE DEL WEBINAR
   const generarTextoWebinar = () => {
-    const periodo = obtenerPeriodo();
-    const fechaCompleta = formatearFechaCompleta(fecha); // 🔥 Usa la fecha completa
+    const nombreWebinar = obtenerNombreWebinar();
+    const fechaCompleta = formatearFechaCompleta(fecha);
     
-    return `Por haber participado en el ${periodo}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
+    return `Por haber participado en el ${nombreWebinar}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
   };
 
   const generarVistaPrevia = async () => {
@@ -137,12 +139,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         color: rgb(0.35, 0.13, 0.56),
       });
       
-      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR
+      // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (CON EL NOMBRE)
       const textoWebinar = generarTextoWebinar();
-      const textFontSize = 12; // 🔥 Letra más grande (antes 11)
-      const textX = 80; // 🔥 Más margen a la izquierda (antes 70)
+      const textFontSize = 12;
+      const textX = 80;
       const textY = height - 320;
-      const maxWidth = width - 180; // 🔥 Más estrecho (antes 140)
+      const maxWidth = width - 180;
       
       const palabras = textoWebinar.split(' ');
       let lineas = [];
@@ -161,7 +163,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       }
       if (lineaActual) lineas.push(lineaActual);
       
-      const lineHeight = 20; // 🔥 Más espacio entre líneas (antes 18)
+      const lineHeight = 20;
       let currentY = textY;
       
       for (const linea of lineas) {
@@ -458,7 +460,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         }}>
           <div>
             <span>📅 {formatearFecha(fecha)}</span>
-            <span style={{ marginLeft: '20px' }}>📄 {obtenerPeriodo()}</span>
+            <span style={{ marginLeft: '20px' }}>📄 {obtenerNombreWebinar()}</span>
           </div>
           <div>
             <span style={{ color: '#5a2290' }}>✓ Certificado generado con la plantilla oficial</span>
