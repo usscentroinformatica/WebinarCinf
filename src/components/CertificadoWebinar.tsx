@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-// ✅ NO importes firebase/config aquí
 
 interface CertificadoWebinarProps {
   nombre: string;
@@ -144,7 +143,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
       const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
       
-      // Dibujar el nombre
       const { nombres, apellidos } = dividirNombre(nombre);
       
       const nombreFontSize = 30;
@@ -178,7 +176,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
-      // Dibujar el texto del webinar
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
       const textX = 140;
@@ -216,7 +213,6 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
-      // Dibujar la fecha
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
