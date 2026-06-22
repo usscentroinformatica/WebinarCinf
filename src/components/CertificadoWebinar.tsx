@@ -137,9 +137,9 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       // 🔥 DIBUJAR EL TEXTO DEL WEBINAR (MÁS ANGOSTO)
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
-      const textX = 100; // 🔥 MÁS MARGEN IZQUIERDO (antes 80)
+      const textX = 120; // 🔥 MÁS MARGEN IZQUIERDO (antes 100)
       const textY = height - 290;
-      const maxWidth = width - 240; // 🔥 MÁS ANGOSTO (antes width - 180)
+      const maxWidth = width - 280; // 🔥 MÁS ANGOSTO (antes width - 240)
       
       const palabras = textoWebinar.split(' ');
       let lineas = [];
@@ -176,7 +176,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 100; // 🔥 MÁS MARGEN DERECHO (antes -80)
+      const fechaX = width - fechaWidth - 120; // 🔥 MÁS MARGEN DERECHO (antes -100)
       const fechaY = 210;
       
       firstPage.drawText(fechaTexto, {
