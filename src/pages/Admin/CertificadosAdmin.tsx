@@ -10,7 +10,7 @@ interface RegistroCertificado {
   nombre: string;
   nombreCertificado: string;
   curso: string;
-  cursos?: string[]; // 🔥 NUEVO: Array de cursos
+  cursos?: string[];
   pead: string;
   solicitaCertificado: string;
   pagado: string;
@@ -29,6 +29,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const [config, setConfig] = useState({ scriptUrl: '', spreadsheetId: '' });
   const [certificadoSeleccionado, setCertificadoSeleccionado] = useState<{ nombre: string; fecha: string } | null>(null);
   const [hojaEliminada, setHojaEliminada] = useState(false);
+  const [enviando, setEnviando] = useState(false);
 
   const extraerFechaPeriodo = (periodoStr: string) => {
     const partes = periodoStr.split(' ');
@@ -49,7 +50,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       const email = registro.email;
       
       if (!mapa.has(email)) {
-        // Primera vez que vemos este email
         mapa.set(email, {
           ...registro,
           cursos: [registro.curso],
@@ -57,16 +57,13 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
           fecha: registro.fecha
         });
       } else {
-        // Ya existe, agregamos el curso a la lista
         const existente = mapa.get(email);
         if (!existente.cursos.includes(registro.curso)) {
           existente.cursos.push(registro.curso);
         }
-        // Si algún registro está pagado, marcamos como pagado
         if (registro.pagado === 'SI') {
           existente.pagado = 'SI';
         }
-        // Actualizar la fecha con la más reciente
         if (registro.fecha > existente.fecha) {
           existente.fecha = registro.fecha;
         }
@@ -74,6 +71,222 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     }
     
     return Array.from(mapa.values());
+  };
+
+  // 🔥 FUNCIÓN PARA GENERAR PDF PARA ENVÍO (CORREGIDA)
+const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob> => {
+  try {
+    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+    const fontkit = await import('@pdf-lib/fontkit');
+    
+    const templateUrl = '/certificado.pdf';
+    const response = await fetch(templateUrl);
+    
+    if (!response.ok) {
+      throw new Error(`No se pudo cargar la plantilla (${response.status})`);
+    }
+    
+    const templateBytes = await response.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(templateBytes);
+    pdfDoc.registerFontkit(fontkit.default);
+    
+    const pages = pdfDoc.getPages();
+    const firstPage = pages[0];
+    
+    if (!firstPage) {
+      throw new Error('El PDF no tiene páginas');
+    }
+    
+    const { width, height } = firstPage.getSize();
+    
+    const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+    const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    
+    // Dividir nombre
+    const nombreCompleto = registro.nombreCertificado || registro.nombre;
+    const partes = nombreCompleto.trim().split(' ');
+    let nombres = partes[0] || '';
+    let apellidos = partes.slice(1).join(' ') || '';
+    
+    if (partes.length >= 3) {
+      nombres = partes.slice(0, 2).join(' ');
+      apellidos = partes.slice(2).join(' ');
+    }
+    
+    // Dibujar nombres
+    const nombreFontSize = 30;
+    const nombreY = height - 210;
+    
+    if (nombres) {
+      const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
+      const nombreX = (width - nombreWidth) / 2;
+      firstPage.drawText(nombres, {
+        x: nombreX,
+        y: nombreY,
+        size: nombreFontSize,
+        font: fontBold,
+        color: rgb(0.35, 0.13, 0.56),
+      });
+    }
+    
+    if (apellidos) {
+      const apellidosFontSize = 30;
+      const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
+      const apellidosX = (width - apellidosWidth) / 2;
+      const apellidosY = nombreY - 45;
+      firstPage.drawText(apellidos, {
+        x: apellidosX,
+        y: apellidosY,
+        size: apellidosFontSize,
+        font: fontBold,
+        color: rgb(0.35, 0.13, 0.56),
+      });
+    }
+    
+    // Obtener nombre del webinar
+    let nombreWebinar = 'Webinar de Capacitación';
+    try {
+      const webinarData = localStorage.getItem('webinar_data');
+      if (webinarData) {
+        const data = JSON.parse(webinarData);
+        nombreWebinar = data.nombreWebinar || data.periodo || 'Webinar de Capacitación';
+      }
+    } catch {}
+    
+    // Formatear fecha completa
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    let fechaCompleta = '2026';
+    if (registro.fecha) {
+      try {
+        const fecha = new Date(registro.fecha);
+        const dia = fecha.getDate();
+        const mes = meses[fecha.getMonth()];
+        const año = fecha.getFullYear();
+        fechaCompleta = `${dia} de ${mes} de ${año}`;
+      } catch {}
+    }
+    
+    // Texto del webinar
+    const textoWebinar = `Por haber participado en el ${nombreWebinar}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
+    
+    // Dibujar texto
+    const textFontSize = 12;
+    const textX = 140;
+    const textY = height - 290;
+    const maxWidth = width - 280;
+    
+    const palabras = textoWebinar.split(' ');
+    let lineas = [];
+    let lineaActual = '';
+    
+    for (const palabra of palabras) {
+      const prueba = lineaActual + (lineaActual ? ' ' : '') + palabra;
+      const anchoPrueba = fontNormal.widthOfTextAtSize(prueba, textFontSize);
+      if (anchoPrueba <= maxWidth) {
+        lineaActual = prueba;
+      } else {
+        if (lineaActual) lineas.push(lineaActual);
+        lineaActual = palabra;
+      }
+    }
+    if (lineaActual) lineas.push(lineaActual);
+    
+    const lineHeight = 20;
+    let currentY = textY;
+    for (const linea of lineas) {
+      firstPage.drawText(linea, {
+        x: textX,
+        y: currentY,
+        size: textFontSize,
+        font: fontNormal,
+        color: rgb(0.2, 0.2, 0.2),
+      });
+      currentY -= lineHeight;
+    }
+    
+    // Fecha (Chiclayo, mes del año)
+    let fechaTexto = 'Chiclayo, 2026';
+    if (registro.fecha) {
+      try {
+        const fecha = new Date(registro.fecha);
+        const mes = meses[fecha.getMonth()];
+        const año = fecha.getFullYear();
+        fechaTexto = `Chiclayo, ${mes} del ${año}`;
+      } catch {}
+    }
+    
+    const fechaFontSize = textFontSize;
+    const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
+    const fechaX = width - fechaWidth - 140;
+    const fechaY = 225;
+    firstPage.drawText(fechaTexto, {
+      x: fechaX,
+      y: fechaY,
+      size: fechaFontSize,
+      font: fontNormal,
+      color: rgb(0.2, 0.2, 0.2),
+    });
+    
+    const pdfBytes = await pdfDoc.save();
+    
+    // 🔥 CORREGIDO: Convertir Uint8Array a ArrayBuffer
+    const arrayBuffer = new ArrayBuffer(pdfBytes.length);
+    const view = new Uint8Array(arrayBuffer);
+    view.set(pdfBytes);
+    return new Blob([arrayBuffer], { type: 'application/pdf' });
+    
+  } catch (error: any) {
+    console.error('❌ Error generando PDF:', error);
+    throw new Error(`Error generando PDF: ${error.message}`);
+  }
+};
+
+  // 🔥 FUNCIÓN PARA ENVIAR CERTIFICADO POR CORREO
+  const enviarPorCorreo = async (registro: RegistroCertificado) => {
+    if (!registro.email) {
+      alert('❌ El estudiante no tiene correo registrado');
+      return;
+    }
+
+    const confirmar = confirm(`📧 ¿Enviar certificado a ${registro.email}?`);
+    if (!confirmar) return;
+
+    try {
+      setEnviando(true);
+      setMensaje(`📧 Enviando certificado a ${registro.email}...`);
+      setError('');
+
+      // Generar el PDF
+      const pdfBlob = await generarPDFParaEnvio(registro);
+      
+      // Crear FormData
+      const formData = new FormData();
+      formData.append('email', registro.email);
+      formData.append('nombre', registro.nombreCertificado || registro.nombre);
+      formData.append('pdf', pdfBlob, `certificado-${registro.nombre}.pdf`);
+      
+      // Enviar al servidor Express
+      const response = await fetch('http://localhost:3001/api/enviar-certificado', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setMensaje(`✅ Certificado enviado exitosamente a ${registro.email}`);
+        alert(`✅ Correo enviado a ${registro.email}`);
+      } else {
+        throw new Error(result.error || 'Error al enviar el correo');
+      }
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error);
+      setError(`❌ Error al enviar: ${error.message}`);
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setEnviando(false);
+    }
   };
 
   // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY
@@ -93,7 +306,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       const result = await response.json();
       console.log('📥 Respuesta del proxy:', result);
       
-      // 🔥 VERIFICAR SI HAY ERROR
       if (result.error) {
         const errorMsg = result.error.toLowerCase();
         console.log('🔍 Mensaje de error:', errorMsg);
@@ -131,7 +343,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       const data = result.data;
       console.log(`📄 ${data.length} registros encontrados`);
       
-      // 🔥 FILTRAR SOLO LOS QUE SOLICITAN CERTIFICADO
       const certificados = data
         .filter((row: any) => {
           const solicita = row['Solicita certificado']?.toString().toLowerCase().trim() || 'no';
@@ -151,7 +362,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
       
       console.log(`📊 ${certificados.length} registros antes de agrupar`);
       
-      // 🔥 AGRUPAR POR EMAIL
       const certificadosAgrupados = agruparPorEmail(certificados);
       
       console.log(`✅ ${certificadosAgrupados.length} estudiantes únicos después de agrupar`);
@@ -335,7 +545,7 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
                 <th style={{ padding: '12px', textAlign: 'left' }}>#</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Participante</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Nombre para Certificado</th>
-                <th style={{ padding: '12px', textAlign: 'left' }}>Cursos</th> {/* 🔥 CAMBIADO */}
+                <th style={{ padding: '12px', textAlign: 'left' }}>Cursos</th>
                 <th style={{ padding: '12px', textAlign: 'center' }}>✅ Pagado</th>
                 <th style={{ padding: '12px', textAlign: 'center' }}>Acciones</th>
               </tr>
@@ -388,36 +598,66 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
                   </td>
                   <td style={{ padding: '10px', textAlign: 'center' }}>
                     {registro.pagado === 'SI' ? (
-                      <button
-                        onClick={() => setCertificadoSeleccionado({
-                          nombre: registro.nombreCertificado || registro.nombre,
-                          fecha: registro.fecha
-                        })}
-                        style={{
-                          padding: '6px 16px',
-                          backgroundColor: '#5a2290',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: '4px',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          fontSize: '13px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          transition: 'all 0.3s ease'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#63ed12';
-                          e.currentTarget.style.color = '#000';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = '#5a2290';
-                          e.currentTarget.style.color = 'white';
-                        }}
-                      >
-                        📄 Ver
-                      </button>
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setCertificadoSeleccionado({
+                            nombre: registro.nombreCertificado || registro.nombre,
+                            fecha: registro.fecha
+                          })}
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: '#5a2290',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontWeight: '600',
+                            fontSize: '12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#63ed12';
+                            e.currentTarget.style.color = '#000';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#5a2290';
+                            e.currentTarget.style.color = 'white';
+                          }}
+                        >
+                          📄 Ver
+                        </button>
+                        
+                        {/* 🔥 BOTÓN ENVIAR CORREO */}
+                        <button
+                          onClick={() => enviarPorCorreo(registro)}
+                          disabled={enviando}
+                          style={{
+                            padding: '6px 12px',
+                            backgroundColor: enviando ? '#ccc' : '#0d6efd',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: enviando ? 'not-allowed' : 'pointer',
+                            fontWeight: '600',
+                            fontSize: '12px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.3s ease'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!enviando) e.currentTarget.style.backgroundColor = '#0b5ed7';
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!enviando) e.currentTarget.style.backgroundColor = '#0d6efd';
+                          }}
+                        >
+                          {enviando ? '⏳' : '📧'} {enviando ? 'Enviando...' : 'Enviar'}
+                        </button>
+                      </div>
                     ) : (
                       <span style={{ color: '#999', fontSize: '12px', fontStyle: 'italic' }}>
                         ⏳ Marcar pago

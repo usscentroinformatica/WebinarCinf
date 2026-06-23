@@ -1,8 +1,12 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/google-script",
       "destination": "/api/google-script"
+    },
+    {
+      "source": "/api/enviar-certificado",
+      "destination": "/api/enviar-certificado"
     },
     {
       "source": "/(.*)",
@@ -34,6 +38,10 @@
   ],
   "functions": {
     "api/google-script.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    },
+    "api/enviar-certificado.js": {
       "maxDuration": 30,
       "memory": 1024
     }
