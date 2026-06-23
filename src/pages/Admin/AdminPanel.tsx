@@ -88,7 +88,7 @@ const AdminPanel = () => {
 
   const cerrarSesion = () => {
     limpiarSesion();
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   useEffect(() => {
