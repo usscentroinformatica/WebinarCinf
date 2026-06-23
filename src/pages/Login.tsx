@@ -278,7 +278,7 @@ export default function Login() {
                 color: '#5f6368',
                 marginTop: '8px'
               }}>
-                Ingresa solo tu nombre de usuario (sin @). El sistema buscará automáticamente.
+                Ingresa solo tu nombre de usuario (sin @).
               </div>
             </div>
 
@@ -370,15 +370,6 @@ export default function Login() {
           </footer>
         </div>
       </main>
-
-      <div style={{
-        textAlign: 'center',
-        padding: '20px',
-        color: '#5f6368',
-        fontSize: '14px'
-      }}>
-        Registro Webinar
-      </div>
     </div>
   );
 }
