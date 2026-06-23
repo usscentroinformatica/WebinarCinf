@@ -59,9 +59,6 @@ const EncuestaWebinar: React.FC = () => {
           gap: '20px'
         }}>
           <img src={logoUss} alt="Universidad Señor de Sipán" style={{ width: '200px', height: 'auto', objectFit: 'contain' }} />
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '14px', color: '#5a2290', fontWeight: '500' }}>{periodoActual}</div>
-          </div>
         </div>
       </header>
 
