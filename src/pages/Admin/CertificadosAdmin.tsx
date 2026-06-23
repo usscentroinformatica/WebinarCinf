@@ -42,7 +42,6 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
   const { mes, año } = extraerFechaPeriodo(periodo);
   const tituloPeriodo = mes && año ? `${mes} ${año}` : periodo;
 
-  // 🔥 FUNCIÓN PARA AGRUPAR POR EMAIL
   const agruparPorEmail = (registros: any[]) => {
     const mapa = new Map();
     
@@ -73,175 +72,165 @@ const CertificadosAdmin: React.FC<CertificadosAdminProps> = ({ periodo }) => {
     return Array.from(mapa.values());
   };
 
-  // 🔥 FUNCIÓN PARA GENERAR PDF PARA ENVÍO (CORREGIDA)
-const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob> => {
-  try {
-    const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
-    const fontkit = await import('@pdf-lib/fontkit');
-    
-    const templateUrl = '/certificado.pdf';
-    const response = await fetch(templateUrl);
-    
-    if (!response.ok) {
-      throw new Error(`No se pudo cargar la plantilla (${response.status})`);
-    }
-    
-    const templateBytes = await response.arrayBuffer();
-    const pdfDoc = await PDFDocument.load(templateBytes);
-    pdfDoc.registerFontkit(fontkit.default);
-    
-    const pages = pdfDoc.getPages();
-    const firstPage = pages[0];
-    
-    if (!firstPage) {
-      throw new Error('El PDF no tiene páginas');
-    }
-    
-    const { width, height } = firstPage.getSize();
-    
-    const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-    const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-    
-    // Dividir nombre
-    const nombreCompleto = registro.nombreCertificado || registro.nombre;
-    const partes = nombreCompleto.trim().split(' ');
-    let nombres = partes[0] || '';
-    let apellidos = partes.slice(1).join(' ') || '';
-    
-    if (partes.length >= 3) {
-      nombres = partes.slice(0, 2).join(' ');
-      apellidos = partes.slice(2).join(' ');
-    }
-    
-    // Dibujar nombres
-    const nombreFontSize = 30;
-    const nombreY = height - 210;
-    
-    if (nombres) {
-      const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
-      const nombreX = (width - nombreWidth) / 2;
-      firstPage.drawText(nombres, {
-        x: nombreX,
-        y: nombreY,
-        size: nombreFontSize,
-        font: fontBold,
-        color: rgb(0.35, 0.13, 0.56),
-      });
-    }
-    
-    if (apellidos) {
-      const apellidosFontSize = 30;
-      const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
-      const apellidosX = (width - apellidosWidth) / 2;
-      const apellidosY = nombreY - 45;
-      firstPage.drawText(apellidos, {
-        x: apellidosX,
-        y: apellidosY,
-        size: apellidosFontSize,
-        font: fontBold,
-        color: rgb(0.35, 0.13, 0.56),
-      });
-    }
-    
-    // Obtener nombre del webinar
-    let nombreWebinar = 'Webinar de Capacitación';
+  const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob> => {
     try {
-      const webinarData = localStorage.getItem('webinar_data');
-      if (webinarData) {
-        const data = JSON.parse(webinarData);
-        nombreWebinar = data.nombreWebinar || data.periodo || 'Webinar de Capacitación';
+      const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+      const fontkit = await import('@pdf-lib/fontkit');
+      
+      const templateUrl = '/certificado.pdf';
+      const response = await fetch(templateUrl);
+      
+      if (!response.ok) {
+        throw new Error(`No se pudo cargar la plantilla (${response.status})`);
       }
-    } catch {}
-    
-    // Formatear fecha completa
-    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-    let fechaCompleta = '2026';
-    if (registro.fecha) {
+      
+      const templateBytes = await response.arrayBuffer();
+      const pdfDoc = await PDFDocument.load(templateBytes);
+      pdfDoc.registerFontkit(fontkit.default);
+      
+      const pages = pdfDoc.getPages();
+      const firstPage = pages[0];
+      
+      if (!firstPage) {
+        throw new Error('El PDF no tiene páginas');
+      }
+      
+      const { width, height } = firstPage.getSize();
+      
+      const fontBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+      const fontNormal = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+      
+      const nombreCompleto = registro.nombreCertificado || registro.nombre;
+      const partes = nombreCompleto.trim().split(' ');
+      let nombres = partes[0] || '';
+      let apellidos = partes.slice(1).join(' ') || '';
+      
+      if (partes.length >= 3) {
+        nombres = partes.slice(0, 2).join(' ');
+        apellidos = partes.slice(2).join(' ');
+      }
+      
+      const nombreFontSize = 30;
+      const nombreY = height - 210;
+      
+      if (nombres) {
+        const nombreWidth = fontBold.widthOfTextAtSize(nombres, nombreFontSize);
+        const nombreX = (width - nombreWidth) / 2;
+        firstPage.drawText(nombres, {
+          x: nombreX,
+          y: nombreY,
+          size: nombreFontSize,
+          font: fontBold,
+          color: rgb(0.35, 0.13, 0.56),
+        });
+      }
+      
+      if (apellidos) {
+        const apellidosFontSize = 30;
+        const apellidosWidth = fontBold.widthOfTextAtSize(apellidos, apellidosFontSize);
+        const apellidosX = (width - apellidosWidth) / 2;
+        const apellidosY = nombreY - 45;
+        firstPage.drawText(apellidos, {
+          x: apellidosX,
+          y: apellidosY,
+          size: apellidosFontSize,
+          font: fontBold,
+          color: rgb(0.35, 0.13, 0.56),
+        });
+      }
+      
+      let nombreWebinar = 'Webinar de Capacitación';
       try {
-        const fecha = new Date(registro.fecha);
-        const dia = fecha.getDate();
-        const mes = meses[fecha.getMonth()];
-        const año = fecha.getFullYear();
-        fechaCompleta = `${dia} de ${mes} de ${año}`;
+        const webinarData = localStorage.getItem('webinar_data');
+        if (webinarData) {
+          const data = JSON.parse(webinarData);
+          nombreWebinar = data.nombreWebinar || data.periodo || 'Webinar de Capacitación';
+        }
       } catch {}
-    }
-    
-    // Texto del webinar
-    const textoWebinar = `Por haber participado en el ${nombreWebinar}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
-    
-    // Dibujar texto
-    const textFontSize = 12;
-    const textX = 140;
-    const textY = height - 290;
-    const maxWidth = width - 280;
-    
-    const palabras = textoWebinar.split(' ');
-    let lineas = [];
-    let lineaActual = '';
-    
-    for (const palabra of palabras) {
-      const prueba = lineaActual + (lineaActual ? ' ' : '') + palabra;
-      const anchoPrueba = fontNormal.widthOfTextAtSize(prueba, textFontSize);
-      if (anchoPrueba <= maxWidth) {
-        lineaActual = prueba;
-      } else {
-        if (lineaActual) lineas.push(lineaActual);
-        lineaActual = palabra;
+      
+      const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      let fechaCompleta = '2026';
+      if (registro.fecha) {
+        try {
+          const fecha = new Date(registro.fecha);
+          const dia = fecha.getDate();
+          const mes = meses[fecha.getMonth()];
+          const año = fecha.getFullYear();
+          fechaCompleta = `${dia} de ${mes} de ${año}`;
+        } catch {}
       }
-    }
-    if (lineaActual) lineas.push(lineaActual);
-    
-    const lineHeight = 20;
-    let currentY = textY;
-    for (const linea of lineas) {
-      firstPage.drawText(linea, {
-        x: textX,
-        y: currentY,
-        size: textFontSize,
+      
+      const textoWebinar = `Por haber participado en el ${nombreWebinar}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
+      
+      const textFontSize = 12;
+      const textX = 140;
+      const textY = height - 290;
+      const maxWidth = width - 280;
+      
+      const palabras = textoWebinar.split(' ');
+      let lineas = [];
+      let lineaActual = '';
+      
+      for (const palabra of palabras) {
+        const prueba = lineaActual + (lineaActual ? ' ' : '') + palabra;
+        const anchoPrueba = fontNormal.widthOfTextAtSize(prueba, textFontSize);
+        if (anchoPrueba <= maxWidth) {
+          lineaActual = prueba;
+        } else {
+          if (lineaActual) lineas.push(lineaActual);
+          lineaActual = palabra;
+        }
+      }
+      if (lineaActual) lineas.push(lineaActual);
+      
+      const lineHeight = 20;
+      let currentY = textY;
+      for (const linea of lineas) {
+        firstPage.drawText(linea, {
+          x: textX,
+          y: currentY,
+          size: textFontSize,
+          font: fontNormal,
+          color: rgb(0.2, 0.2, 0.2),
+        });
+        currentY -= lineHeight;
+      }
+      
+      let fechaTexto = 'Chiclayo, 2026';
+      if (registro.fecha) {
+        try {
+          const fecha = new Date(registro.fecha);
+          const mes = meses[fecha.getMonth()];
+          const año = fecha.getFullYear();
+          fechaTexto = `Chiclayo, ${mes} del ${año}`;
+        } catch {}
+      }
+      
+      const fechaFontSize = textFontSize;
+      const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
+      const fechaX = width - fechaWidth - 140;
+      const fechaY = 225;
+      firstPage.drawText(fechaTexto, {
+        x: fechaX,
+        y: fechaY,
+        size: fechaFontSize,
         font: fontNormal,
         color: rgb(0.2, 0.2, 0.2),
       });
-      currentY -= lineHeight;
+      
+      const pdfBytes = await pdfDoc.save();
+      
+      const arrayBuffer = new ArrayBuffer(pdfBytes.length);
+      const view = new Uint8Array(arrayBuffer);
+      view.set(pdfBytes);
+      return new Blob([arrayBuffer], { type: 'application/pdf' });
+      
+    } catch (error: any) {
+      console.error('❌ Error generando PDF:', error);
+      throw new Error(`Error generando PDF: ${error.message}`);
     }
-    
-    // Fecha (Chiclayo, mes del año)
-    let fechaTexto = 'Chiclayo, 2026';
-    if (registro.fecha) {
-      try {
-        const fecha = new Date(registro.fecha);
-        const mes = meses[fecha.getMonth()];
-        const año = fecha.getFullYear();
-        fechaTexto = `Chiclayo, ${mes} del ${año}`;
-      } catch {}
-    }
-    
-    const fechaFontSize = textFontSize;
-    const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
-    const fechaX = width - fechaWidth - 140;
-    const fechaY = 225;
-    firstPage.drawText(fechaTexto, {
-      x: fechaX,
-      y: fechaY,
-      size: fechaFontSize,
-      font: fontNormal,
-      color: rgb(0.2, 0.2, 0.2),
-    });
-    
-    const pdfBytes = await pdfDoc.save();
-    
-    // 🔥 CORREGIDO: Convertir Uint8Array a ArrayBuffer
-    const arrayBuffer = new ArrayBuffer(pdfBytes.length);
-    const view = new Uint8Array(arrayBuffer);
-    view.set(pdfBytes);
-    return new Blob([arrayBuffer], { type: 'application/pdf' });
-    
-  } catch (error: any) {
-    console.error('❌ Error generando PDF:', error);
-    throw new Error(`Error generando PDF: ${error.message}`);
-  }
-};
+  };
 
-  // 🔥 FUNCIÓN PARA ENVIAR CERTIFICADO POR CORREO
   const enviarPorCorreo = async (registro: RegistroCertificado) => {
     if (!registro.email) {
       alert('❌ El estudiante no tiene correo registrado');
@@ -256,16 +245,13 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
       setMensaje(`📧 Enviando certificado a ${registro.email}...`);
       setError('');
 
-      // Generar el PDF
       const pdfBlob = await generarPDFParaEnvio(registro);
       
-      // Crear FormData
       const formData = new FormData();
       formData.append('email', registro.email);
       formData.append('nombre', registro.nombreCertificado || registro.nombre);
       formData.append('pdf', pdfBlob, `certificado-${registro.nombre}.pdf`);
       
-      // Enviar al servidor Express
       const response = await fetch('/api/enviar-certificado', {
         method: 'POST',
         body: formData
@@ -289,7 +275,6 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
     }
   };
 
-  // 🔥 CARGAR DATOS A TRAVÉS DEL PROXY
   const cargarDatosDesdeProxy = async (spreadsheetId: string, scriptUrl: string) => {
     try {
       console.log('📡 Llamando al App Script a través del proxy...');
@@ -482,7 +467,7 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
   }
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '20px', maxWidth: '100%' }}>
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -539,7 +524,12 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+          <table style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse', 
+            fontSize: '14px',
+            minWidth: '800px'
+          }}>
             <thead>
               <tr style={{ backgroundColor: '#5a2290', color: 'white' }}>
                 <th style={{ padding: '12px', textAlign: 'left' }}>#</th>
@@ -547,7 +537,7 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Nombre para Certificado</th>
                 <th style={{ padding: '12px', textAlign: 'left' }}>Cursos</th>
                 <th style={{ padding: '12px', textAlign: 'center' }}>✅ Pagado</th>
-                <th style={{ padding: '12px', textAlign: 'center' }}>Acciones</th>
+                <th style={{ padding: '12px', textAlign: 'center', minWidth: '160px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -596,9 +586,15 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
                       {registro.pagado === 'SI' ? '✅' : '⬜'}
                     </button>
                   </td>
-                  <td style={{ padding: '10px', textAlign: 'center' }}>
+                  <td style={{ padding: '10px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                     {registro.pagado === 'SI' ? (
-                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        gap: '6px', 
+                        justifyContent: 'center', 
+                        alignItems: 'center',
+                        flexWrap: 'nowrap'
+                      }}>
                         <button
                           onClick={() => setCertificadoSeleccionado({
                             nombre: registro.nombreCertificado || registro.nombre,
@@ -616,7 +612,8 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
+                            whiteSpace: 'nowrap'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.backgroundColor = '#63ed12';
@@ -630,7 +627,6 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
                           📄 Ver
                         </button>
                         
-                        {/* 🔥 BOTÓN ENVIAR CORREO */}
                         <button
                           onClick={() => enviarPorCorreo(registro)}
                           disabled={enviando}
@@ -646,7 +642,8 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '4px',
-                            transition: 'all 0.3s ease'
+                            transition: 'all 0.3s ease',
+                            whiteSpace: 'nowrap'
                           }}
                           onMouseEnter={(e) => {
                             if (!enviando) e.currentTarget.style.backgroundColor = '#0b5ed7';
