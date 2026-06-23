@@ -1,7 +1,7 @@
 // src/pages/Login.tsx
 import { useState, useEffect } from 'react';
 import logoUss from '../assets/uss.png';
-import { esAdmin, getConfigCompleta, getPeriodoActual } from '../services/authService';
+import { esAdmin, getConfigCompleta } from '../services/authService';
 
 interface Curso {
   nombre: string;
@@ -17,23 +17,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [dominioEncontrado, setDominioEncontrado] = useState('');
-  const [periodoActual, setPeriodoActual] = useState('Cargando...');
 
-  // Cargar el período desde Firebase al iniciar
+  // Verificar si ya hay sesión de admin al cargar
   useEffect(() => {
-    const cargarPeriodo = async () => {
-      try {
-        const periodo = await getPeriodoActual();
-        setPeriodoActual(periodo);
-        console.log('📅 Período cargado:', periodo);
-      } catch (error) {
-        console.error('Error cargando período:', error);
-        setPeriodoActual('WEBINAR NO CONFIGURADO');
-      }
-    };
-    cargarPeriodo();
-
-    // Verificar si ya hay sesión de admin
     const isAdmin = localStorage.getItem('isAdmin') === 'true';
     if (isAdmin) {
       window.location.href = '/admin';
@@ -223,13 +209,6 @@ export default function Login() {
             }}>
               REGISTRO WEBINAR
             </h2>
-            <div style={{
-              marginTop: '12px',
-              fontSize: '16px',
-              fontWeight: '500'
-            }}>
-              {periodoActual}
-            </div>
             <div style={{
               marginTop: '8px',
               fontSize: '14px',
