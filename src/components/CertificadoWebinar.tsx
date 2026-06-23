@@ -57,7 +57,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     
     try {
       const fecha = new Date(fechaStr);
-      const dia = fecha.getDate();
+      const dia = String(fecha.getDate()).padStart(2, '0');
       const mes = meses[fecha.getMonth()];
       const año = fecha.getFullYear();
       return `${dia} de ${mes} de ${año}`;
@@ -93,7 +93,7 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
     const nombreWebinar = obtenerNombreWebinar();
     const fechaCompleta = formatearFechaCompleta(fecha);
     
-    return `Por haber participado en el ${nombreWebinar}, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias digitales en la creación de presentaciones profesionales, dinámicas e impactantes mediante el uso eficiente de Microsoft PowerPoint.`;
+    return `Por haber participado en el Webinar “${nombreWebinar}”, desarrollado por el Centro de Informática de la Universidad Señor de Sipán, realizado el ${fechaCompleta}, con una duración de 02 horas académicas, fortaleciendo sus competencias en el uso de herramientas digitales aplicadas al aprendizaje y la productividad académica.`;
   };
 
   const generarVistaPrevia = async () => {
@@ -176,11 +176,12 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         });
       }
       
+      // 🔥 TEXTO DEL WEBINAR - MÁS A LA DERECHA
       const textoWebinar = generarTextoWebinar();
       const textFontSize = 12;
-      const textX = 140;
+      const textX = 160; // 🔥 MOVER A LA DERECHA (antes 140)
       const textY = height - 290;
-      const maxWidth = width - 280;
+      const maxWidth = width - 300; // 🔥 MÁS ANGOSTO (antes 280)
       
       const palabras = textoWebinar.split(' ');
       let lineas = [];
@@ -213,10 +214,11 @@ const CertificadoWebinar: React.FC<CertificadoWebinarProps> = ({ nombre, fecha, 
         currentY -= lineHeight;
       }
       
+      // 🔥 FECHA - MÁS A LA DERECHA
       const fechaTexto = formatearFecha(fecha);
       const fechaFontSize = textFontSize;
       const fechaWidth = fontNormal.widthOfTextAtSize(fechaTexto, fechaFontSize);
-      const fechaX = width - fechaWidth - 140;
+      const fechaX = width - fechaWidth - 160; // 🔥 MOVER A LA DERECHA (antes 140)
       const fechaY = 225;
       
       firstPage.drawText(fechaTexto, {
