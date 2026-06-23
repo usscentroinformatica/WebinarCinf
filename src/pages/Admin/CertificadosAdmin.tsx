@@ -266,7 +266,7 @@ const generarPDFParaEnvio = async (registro: RegistroCertificado): Promise<Blob>
       formData.append('pdf', pdfBlob, `certificado-${registro.nombre}.pdf`);
       
       // Enviar al servidor Express
-      const response = await fetch('http://localhost:3001/api/enviar-certificado', {
+      const response = await fetch('/api/enviar-certificado', {
         method: 'POST',
         body: formData
       });
