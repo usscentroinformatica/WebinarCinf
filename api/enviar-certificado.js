@@ -1,5 +1,6 @@
 // api/enviar-certificado.js
 import nodemailer from 'nodemailer';
+import busboy from 'busboy';
 
 export const config = {
   api: {
@@ -98,10 +99,9 @@ export default async function handler(req, res) {
   }
 }
 
-// 🔥 FUNCIÓN PARA PARSEAR FORM DATA
+// 🔥 FUNCIÓN PARA PARSEAR FORM DATA (con import en lugar de require)
 async function parseFormData(req) {
   return new Promise((resolve, reject) => {
-    const busboy = require('busboy');
     const bb = busboy({ headers: req.headers });
     
     const fields = {};
